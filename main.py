@@ -21,16 +21,14 @@ def run_web_server():
 
 # 🔄 دالة الإنعاش الذاتي الخارقة لمنع السيرفر المجاني من النوم نهائياً
 def self_ping_voodoo():
-    # انتظر حتى يقلع السيرفر بالكامل أولاً
     import time
     time.sleep(30)
     while True:
         try:
-            # السيرفر يقوم بزيارة نفسه ليبقى مستيقظاً 24 ساعة
             httpx.get("http://localhost:8080/")
         except:
             pass
-        time.sleep(600) # تكرار العملية كل 10 دقائق
+        time.sleep(600)
 
 # --- 🔗 البيانات والمفاتيح الحية للبروفيسور إسماعيل مباشرة ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
@@ -38,7 +36,6 @@ SUPABASE_KEY = "EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 TELEGRAM_TOKEN = "8802669339:AAHNqI3IKQmk9HjygqrlT4UK0L5nCYYCb_c"
 AI_API_KEY = "AQ.Ab8RN6J48hbWUgthd6A8x4HS8cPUfb9qoBhkVLF_mdfn-r1clA"
 
-# 🔒 إعدادات المطور والحماية الشخصية
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
 
@@ -86,21 +83,17 @@ async def get_patient_history_from_supabase(full_name):
         return None
 
 async def consult_advanced_medical_system(content_text, is_media=False, history_context="", missing_answers=""):
-
-history_prompt = f"\n[سجل التاريخ المرضي السابق / Past Medical History]:\n{history_context}" if history_context else "\n(أول زيارة للمريض)."
+    history_prompt = f"\n[سجل التاريخ المرضي السابق / Past Medical History]:\n{history_context}" if history_context else "\n(أول زيارة للمريض)."
     
     prompt = f"""
     أنت الآن "منظومة البروفيسور سينا للكونسلتو الطبي الأعلى والتشخيص البصري والسريري المتقدم". خلف كواليسك مراجع الطب الكبرى مجتمعة.
     التركيز الإكلينيكي والمراجع المفعلة حالياً: {SYSTEM_CONFIG['clinical_focus']}
-
     [قاعدة صارمة للمصطلحات والرد]:
     يجب أن تتم صياغة كافة المصطلحات الطبية، الأمراض، الأعراض، والتحاليل باللغتين معاً داخل التقرير: اللغة العربية واللغة العلمية اللاتينية/الإنجليزية بجانبها بين قوسين. مثل: التهاب الزائدة الدودية (Acute Appendicitis).
-
     سياق المعطيات الحالي:
     {content_text}
     {history_prompt}
     {missing_answers}
-
     إذا كانت المدخلات دردشة عادية، رد بلباقة وفخامة، واكتب في النهاية عبارة ---NOT_MEDICAL---.
     إذا كانت طبية، صغ المخرج بالتالي:
     ---START_DISC---
@@ -122,7 +115,6 @@ history_prompt = f"\n[سجل التاريخ المرضي السابق / Past Med
         "messages": [{"role": "user", "content": prompt}],
         "temperature": SYSTEM_CONFIG["ai_temperature"]
     }
-    # تم رفع الـ Timeout لـ 60 ثانية لتجنب كراش الاستضافات المجانية
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(url, headers=headers, json=payload)
         return response.json()['choices'][0]['message']['content'] if response.status_code == 200 else "❌ خطأ سحابي في معالجة الـ AI"
@@ -160,46 +152,25 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
-
         if user_id == DEVELOPER_CHAT_ID and SYSTEM_CONFIG["broadcast_mode"]:
             SYSTEM_CONFIG["broadcast_mode"] = False
             await update.message.reply_text(f"📢 *[تمت الإذاعة الإمبراطورية بنجاح]:*\nتم بث رسالتك التوجيهية لكافة المشتركين بسلام.", reply_markup=get_developer_reply_keyboard(), parse_mode="Markdown")
             return
-
-admin_buttons = [
-            "📈 تقرير الأداء الحركي وتحليل الحالات", "📊 الخزنة السحابية", "📥 سحب داتا المرضى",
-            "📚 تبديل المرجع: AMBOSS/Oxford", "🧠 حذر (0.1)", "⚡ عبقرية (0.7)",
-            "📢 إذاعة للمشتركين", "🧹 تصفير الذاكرة المؤقتة", "🚨 تشغيل/إيقاف المنظومة الطبية"
-        ]
+        admin_buttons = ["📈 تقرير الأداء الحركي وتحليل الحالات", "📊 الخزنة السحابية", "📥 سحب داتا المرضى", "📚 تبديل المرجع: AMBOSS/Oxford", "🧠 حذر (0.1)", "⚡ عبقرية (0.7)", "📢 إذاعة للمشتركين", "🧹 تصفير الذاكرة المؤقتة", "🚨 تشغيل/إيقاف المنظومة الطبية"]
         if user_id == DEVELOPER_CHAT_ID and user_text in admin_buttons:
             await handle_admin_buttons(update, context, user_text)
             return
-
-        user_buttons = [
-            "🩺 استشارة طبية جديدة", "🩻 التشخيص التفريقي المتعدد", "🧮 حاسبة الجرعات الطبيّة (MedCalc)",
-            "💊 فاحص التداخلات الدوائية", "🧬 رادار المقاومة والمضادات البكتيرية", "📊 مؤشر الفرز الحركي", "👑 المطور والمهندس المسؤول"
-        ]
+        user_buttons = ["🩺 استشارة طبية جديدة", "🩻 التشخيص التفريقي المتعدد", "🧮 حاسبة الجرعات الطبيّة (MedCalc)", "💊 فاحص التداخلات الدوائية", "🧬 رادار المقاومة والمضادات البكتيرية", "📊 مؤشر الفرز الحركي", "👑 المطور والمهندس المسؤول"]
         if user_text in user_buttons:
             await handle_user_buttons(update, context, user_text)
             return
-
         if not SYSTEM_CONFIG["is_active"] and user_id != DEVELOPER_CHAT_ID:
             await update.message.reply_text("🚨 النظام في وضع صيانة الطوارئ المؤقتة حالياً.")
             return
-
         if update.message.voice: user_text = "[رسالة سريرية صوتية]"; is_media = True
         elif update.message.photo: user_text = "[مستند بصري طبي]"; is_media = True
         else: is_media = False
-
-        processing_message = await update.message.reply_text(
-            "⏳ *[المنظومة في وضع المعالجة السريرية المشتركة]*\n"
-            "──────────────────\n"
-            "🔍 *جاري قراءة المعطيات الطبية ومقاطعتها سحابياً...*\n"
-            "🧠 *يقوم البروفيسور سينا الآن بفحص الحالة ومطابقتها بالتوازي مع أدلة UpToDate ،AMBOSS، وOxford ومحددات WHO لصياغة تقرير تشخيصي متكامل باللغتين. انتظر ثوانٍ معدودة...*",
-            reply_markup=get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard(),
-            parse_mode="Markdown"
-        )
-
+        processing_message = await update.message.reply_text("⏳ *[المنظومة في وضع المعالجة السريرية المشتركة]*\n──────────────────\n🔍 *جاري قراءة المعطيات الطبية ومقاطعتها سحابياً...*\n🧠 *يقوم البروفيسور سينا الآن بفحص الحالة ومطابقتها بالتوازي مع أدلة UpToDate ،AMBOSS، وOxford ومحددات WHO لصياغة تقرير تشخيصي متكامل باللغتين. انتظر ثوانٍ معدودة...*", reply_markup=get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard(), parse_mode="Markdown")
         if context.user_data.get('waiting_for_answers'):
             patient_case = context.user_data.get('original_case')
             missing_answers = user_text
@@ -207,27 +178,20 @@ admin_buttons = [
         else:
             patient_case = user_text; missing_answers = ""
             context.user_data['original_case'] = patient_case
-
         try:
             patient_name = patient_case.split("\n")[0].replace("الاسم:", "").strip()
             if not patient_name or len(patient_name) > 30: patient_name = "حالة سريرية"
         except:
             patient_name = "حالة طارئة"
-
         history_text = await get_patient_history_from_supabase(patient_name) if not missing_answers else ""
-
         epi_alerts = predict_epidemiology_and_risks(patient_case)
         drug_alerts = check_drug_interactions(patient_case)
-
         raw_output = await consult_advanced_medical_system(patient_case, is_media, history_text, missing_answers)
-        
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
-
         if "---NOT_MEDICAL---" in raw_output:
             dev_signature = f"\n\n⚙️ _تطوير المنظومة وإدارتها العليا بواسطة المهندس المسؤول:_ {DEVELOPER_USERNAME}"
             await processing_message.edit_text(raw_output.replace("---NOT_MEDICAL---", "").strip() + dev_signature, reply_markup=reply_markup, parse_mode="Markdown")
             return
-
         try:
             rep = raw_output.split("---START_REP---")[1].split("---END_REP---")[0].strip()
             sys_data = raw_output.split("---START_SYS---")[1].split("---END_SYS---")[0].strip()
@@ -236,35 +200,23 @@ admin_buttons = [
             questions = sys_data.split("النواقص:")[1].strip()
         except:
             rep, specialty, urgency, questions = raw_output, "عام", "مستقرة", "لا يوجد"
-
         await save_to_supabase_advanced(patient_name, rep[:500] + "...", specialty, urgency)
-
-rights_footer = (
-            f"\n\n👑 *[ميثاق الملكية وحقوق البرمجة السيادية]:*\n"
-            f"──────────────────\n"
-            f"تمت هندسة وبناء هذا العقل الطبي الاستشاري متعدد المراجع بالكامل من الصفر بواسطة البروفيسور إسماعيل. "
-            f"جميع الحقوق محفوظة سحابياً. للتواصل المباشر والتقارير الإدارية والتطوير: {DEVELOPER_USERNAME}"
-        )
+        rights_footer = (f"\n\n👑 *[ميثاق الملكية وحقوق البرمجة السيادية]:*\n──────────────────\nتمت هندسة وبناء هذا العقل الطبي الاستشاري متعدد المراجع بالكامل من الصفر بواسطة البروفيسور إسماعيل. جميع الحقوق محفوظة سحابياً. للتواصل المباشر والتقارير الإدارية والتطوير: {DEVELOPER_USERNAME}")
         rep_with_rights = rep + rights_footer
-
         if drug_alerts: await update.message.reply_text(drug_alerts, parse_mode="Markdown")
         if epi_alerts: await update.message.reply_text(epi_alerts, parse_mode="Markdown")
-
         chunks = split_medical_text(rep_with_rights)
         await processing_message.edit_text(chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None, parse_mode="Markdown")
-        
         for i, chunk in enumerate(chunks[1:]):
             if i == len(chunks[1:]) - 1:
                 await update.message.reply_text(chunk, reply_markup=reply_markup, parse_mode="Markdown")
             else:
                 await update.message.reply_text(chunk, parse_mode="Markdown")
-
         if questions and "لا يوجد" not in questions:
             context.user_data['waiting_for_answers'] = True
             await update.message.reply_text(f"❓ *[بروتوكول الاستجواب السريري التفاعلي / Clinical Inquiries]:*\n\n{questions}")
         else:
             context.user_data['waiting_for_answers'] = False
-
     except Exception as e:
         if DEVELOPER_CHAT_ID:
             await context.bot.send_message(chat_id=DEVELOPER_CHAT_ID, text=f"⚠️ *تقرير خطأ جراحي للمطور:*\n\nحدثت مشكلة: {str(e)}", parse_mode="Markdown")
@@ -272,98 +224,48 @@ rights_footer = (
 
 async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
     reply_markup = get_user_reply_keyboard()
-    
     if button_text == "🩺 استشارة طبية جديدة":
         context.user_data.clear()
-        text = (
-            "🩺 *[تهيئة غرف الكونسلتو الطبي المشترك]*\n"
-            "──────────────────\n"
-            "المنظومة في وضع الاستعداد التام لاستقبال المعطيات والتشخيص عبر مراجع كبرى مجتمعة (*UpToDate, AMBOSS, Oxford, WHO*).\n\n"
-            "📝 *صيغ الإرسال المدعومة فخامةً:*\n"
-            "• اكتب الشكوى الرئيسية (Chief Complaint) والأعراض الحالية بالتفصيل.\n"
-            "• أو أرسل صورة للتحاليل الطبية أو الأشعة التشخيصية بصرياً.\n"
-            "• أو سجل رسالة صوتية واضحة تشرح حالة المريض الطارئة."
-        )
+        text = ("🩺 *[تهيئة غرف الكونسلتو الطبي المشترك]*\n──────────────────\nالمنظومة في وضع الاستعداد التام لاستقبال المعطيات والتشخيص عبر مراجع كبرى مجتمعة (*UpToDate, AMBOSS, Oxford, WHO*).\n\n📝 *صيغ الإرسال المدعومة فخامةً:*\n• اكتب الشكوى الرئيسية (Chief Complaint) والأعراض الحالية بالتفصيل.\n• أو أرسل صورة للتحاليل الطبية أو الأشعة التشخيصية بصرياً.\n• أو سجل رسالة صوتية واضحة تشرح حالة المريض الطارئة.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-        
     elif button_text == "🩻 التشخيص التفريقي المتعدد":
-        text = (
-            "🩻 *[محرك التشخيص التفريقي / Differential Diagnosis (DDx)]*\n"
-            "──────────────────\n"
-            "ميزة خارقة للفرز وفحص التشابه السريري بموجب دليل *UpToDate* المتقدم:\n\n"
-            "✍️ *خطوات الفحص والاستعمال:*\n"
-            "قم بكتابة العرض الرئيسي للمريض فقط (مثال: *ألم صدر حاد / Acute Chest Pain* أو *صداع مفاجئ / Sudden Headache*) وأرسله مباشرة.\n\n"
-            "🧠 سيقوم البروفيسور سينا بسرد مصفوفة الاحتمالات الطبية المتطابقة مع هذا العرض مرتبة من الأشد خطورة ونوعية إلى الأقل، باللغتين الطبية والعربية."
-        )
+        text = ("🩻 *[محرك التشخيص التفريقي / Differential Diagnosis (DDx)]*\n──────────────────\nميزة خارقة للفرز وفحص التشابه السريري بموجب دليل *UpToDate* المتقدم:\n\n✍️ *خطوات الفحص والاستعمال:*\nقم بكتابة العرض الرئيسي للمريض فقط (مثال: *ألم صدر حاد / Acute Chest Pain* أو *صداع مفاجئ / Sudden Headache*) وأرسله مباشرة.\n\n🧠 سيقوم البروفيسور سينا بسرد مصفوفة الاحتمالات الطبية المتطابقة مع هذا العرض مرتبة من الأشد خطورة ونوعية إلى الأقل، باللغتين الطبية والعربية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-        
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
-        text = (
-            "🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n"
-            "──────────────────\n"
-            "بوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n"
-            "🔢 *العمليات الحسابية المدعومة فوراً:*\n"
-            "1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n"
-
-"2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n"
-            "3️⃣ *مؤشر كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على الوزن والطول للتوجيه الوريدي الشامل.\n\n"
-            "✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية في رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._"
-        )
+        text = ("🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n──────────────────\nبوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n🔢 *العمليات الحسابية المدعومة فوراً:*\n1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n3️⃣ *مؤشر كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على الوزن والطول للتوجيه الوريدي الشامل.\n\n✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية في رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-        
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        text = (
-            "💊 *[رادار السلامة وفحص التعارضات / Drug Interactions]*\n"
-            "──────────────────\n"
-            "لحماية المرضى من الصدمات الدوائية والتفاعلات العكسية الكيميائية الحادة:\n\n"
-            "✍️ *طريقة المطابقة الحية:*\n"
-            "قم بكتابة أسماء العلاجات مجتمعة في رسالة واحدة (باللغة العربية أو مصطلحاتها الإنجليزية العلمية) مثل: *(Enalapril + Spironolactone)*.\n\n"
-            "🔬 سيقوم السيرفر بمقاطعتها فوراً للتأكد من عدم وجود تداخل أسود خطير يؤثر على مؤشرات المريض الحيوية."
-        )
+        text = ("💊 *[رادار السلامة وفحص التعارضات / Drug Interactions]*\n──────────────────\nلحماية المرضى من الصدمات الدوائية والتفاعلات العكسية الكيميائية الحادة:\n\n✍️ *طريقة المطابقة الحية:*\nقم بكتابة أسماء العلاجات مجتمعة في رسالة واحدة (باللغة العربية أو مصطلحاتها الإنجليزية العلمية) مثل: *(Enalapril + Spironolactone)*.\n\n🔬 سيقوم السيرفر بمقاطعتها فوراً للتأكد من عدم وجود تداخل أسود خطير يؤثر على مؤشرات المريض الحيوية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-        
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
-        text = (
-            "🧬 *[محرك إدارة وتوجيه المضادات الحيوية / Antibiotic Stewardship]*\n"
-            "──────────────────\n"
-            "إضافة خارقة لمنع سوء استخدام العلاجات البكتيرية وتوجيه الاختيار التجريبي الذكي (*Empiric Therapy*):\n\n"
-            "✍️ *آلية الاستعلام:*\n"
-            "اكتب موضع الالتهاب أو التشخيص المبدئي (مثال: *التهاب مجاري بولية / UTI* أو *التهاب لوزتين حاد / Acute Tonsillitis*).\n\n"
-            "🔬 سيقوم البروفيسور سينا بإعطائك خط الدفاع الأول للخطط العلاجية الصارمة بموجب أدلة الجودة العالمية، شاملاً الجرعات القياسية وفترات العلاج المثالية باللغتين الطبية والعربية."
-        )
+        text = ("🧬 *[محرك إدارة وتوجيه المضادات الحيوية / Antibiotic Stewardship]*\n──────────────────\nإضافة خارقة لمنع سوء استخدام العلاجات البكتيرية وتوجيه الاختيار التجريبي الذكي (*Empiric Therapy*):\n\n✍️ *آلية الاستعلام:*\nاكتب موضع الالتهاب أو التشخيص المبدئي (مثال: *التهاب مجاري بولية / UTI* أو *التهاب لوزتين حاد / Acute Tonsillitis*).\n\n🔬 سيقوم البروفيسور سينا بإعطائك خط الدفاع الأول للخطط العلاجية الصارمة بموجب أدلة الجودة العالمية، شاملاً الجرعات القياسية وفترات العلاج المثالية باللغتين الطبية والعربية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-        
     elif button_text == "📊 مؤشر الفرز الحركي":
         headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
         async with httpx.AsyncClient() as client:
             res = await client.get(f"{SUPABASE_URL}/rest/v1/patients?select=id", headers=headers)
             count = len(res.json()) if res.status_code == 200 else 0
-        text = (
-            "📊 *[مؤشر التدفق السريري وكفاءة السيرفر المركزي]*\n"
-            "──────────────────\n"
-            f"• *الحالات قيد الفرز والتشخيص حالياً:* {count + 3} حالات نشطة.\n"
-            f"• *المراجع النشطة المتصلة بالسحابة:* المربع الذهبي الحركي (*UpToDate / AMBOSS / Oxford / WHO*).\n"
-            f"• *دقة مطابقة التداخلات والمصطلحات الدوائية:* 100% علمية موثقة."
-        )
+        text = ("📊 *[مؤشر التدفق السريري وكفاءة السيرفر المركزي]*\n──────────────────\n" + f"• *الحالات قيد الفرز والتشخيص حالياً:* {count + 3} حالات نشطة.\n• *المراجع النشطة المتصلة بالسحابة:* المربع الذهبي الحركي (*UpToDate / AMBOSS / Oxford / WHO*).\n• *دقة مطابقة التداخلات والمصطلحات الدوائية:* 100% علمية موثقة.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-        
     elif button_text == "👑 المطور والمهندس المسؤول":
-        dev_info = (
-            "👑 *[بيان الملكية السيادية وحقوق الهندسة الرقمية]*\n"
-            "──────────────────\n"
-            "تم تصميم، برمجة وتطوير هذا العقل الاصطناعي الطبي متعدد المحركات والأنظمة بالكامل من الصفر بواسطة البروفيسور إسماعيل.\n\n"
-            "المنظومة متصلة بأحدث شبكات خوادم قواعد البيانات السحابية الحية ومعززة ببروتوكولات التشفير والتشخيص السريري الأعلى عالمياً.\n\n"
-            f"📬 *للتواصل التقني، التطوير الإداري، أو الاستفسارات المباشرة:* {DEVELOPER_USERNAME}"
-        )
+        dev_info = ("👑 *[بيان الملكية السيادية وحقوق الهندسة الرقمية]*\n──────────────────\nتم تصميم، برمجة وتطوير هذا العقل الاصطناعي الطبي متعدد المحركات والأنظمة بالكامل من الصفر بواسطة البروفيسور إسماعيل.\n\nالمنظومة متصلة بأحدث شبكات خوادم قواعد البيانات السحابية الحية ومعززة ببروتوكولات التشفير والتشخيص السريري الأعلى عالمياً.\n\n📬 *للتواصل التقني، التطوير الإداري، أو الاستفسارات المباشرة:* {DEVELOPER_USERNAME}")
         await update.message.reply_text(dev_info, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
     reply_markup = get_developer_reply_keyboard()
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
-
-async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as client:
             res = await client.get(f"{SUPABASE_URL}/rest/v1/patients?select=urgency,specialty", headers=headers)
             data = res.json() if res.status_code == 200 else []
         critical_count = sum(1 for p in data if "حرجة" in p.get("urgency", ""))
         text = f"📈 *تقرير الأداء الاستراتيجي الشامل للبروفيسور سينا:*\n\n🎯 *المحرك النشط:* {SYSTEM_CONFIG['clinical_focus']}\n📊 *إجمالي حالات الفرز السحابي:* {len(data)}.\n🚨 *الحالات الحرجة في قاعدة البيانات:* {critical_count} مريض تحت الرقابة."
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+
+if __name__ == '__main__':
+    Thread(target=run_web_server).start()
+    Thread(target=self_ping_voodoo).start()
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(MessageHandler(filters.ALL, handle_main_flow))
+    app.run_polling()
+    
