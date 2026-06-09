@@ -45,7 +45,7 @@ async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Ma
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 TELEGRAM_TOKEN = "8802669339:AAHNqI3IKQmk9HjygqrlT4UK0L5nCYYCb_c"
-AI_API_KEY = "AQ.Ab8RN6J48hbWUgthd6A8x4HS8cPUfb9qoBhkVLF_mdfn-r1clA"
+AI_API_KEY = "AQ.Ab8RN6Lg5Ds0GlzX1QVOof8WtvxGl48L8BlsftaOUJWdFtK-VQ"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -105,16 +105,23 @@ async def consult_advanced_medical_system(content_text, is_media=False, history_
         "إذا كانت المدخلات دردشة عادية, رد بلباقة وفخامة، واكتب في النهاية عبارة ---NOT_MEDICAL---\n"
         "إذا كانت طبية، صغ المخرج بالتالي:\n---START_DISC---\nنقاش العباقرة وتفنيدهم الطبي بناءً على كبار المراجع العلمية.\n---END_DISC---\n---START_REP---\nالتقرير الاستشاري النهائي الشامل والمنظم للبروفيسور سينا (شاملاً التحليل البصري أو المخبري مع التمسك بالمصطلحات الثنائية).\n---END_REP---\n---START_SYS---\nالتخصص: [تخصص الحالة]\nالخطورة: [حرجة، متوسطة، مستقرة]\nالنواقص: [3 أسئلة استجوابية سريرية، أو 'لا يوجد']\n---END_SYS---"
     )
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {AI_API_KEY}", "Content-Type": "application/json"}
+    
+    # 🚀 تحديث الرابط والهيكل ليتوافق مع محرك Google Gemini الحركي المتقدم
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
     payload = {
-        "model": "gpt-4-turbo",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": SYSTEM_CONFIG["ai_temperature"]
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": SYSTEM_CONFIG["ai_temperature"]
+        }
     }
+    
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(url, headers=headers, json=payload)
-        return response.json()['choices'][0]['message']['content'] if response.status_code == 200 else "❌ خطأ سحابي في معالجة الـ AI"
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        else:
+            return "❌ خطأ سحابي في معالجة الـ AI"
 
 async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
     try:
