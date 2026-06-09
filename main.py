@@ -19,11 +19,11 @@ def run_web_server():
     port = int(os.environ.get("PORT", 8080))
     server.run(host='0.0.0.0', port=port)
 
-# --- 🔗 مفاتيح الربط السحابي الحية (كما هي بناءً على طلبك) ---
+# --- 🔗 مفاتيح الربط السحابي الحية (تم تحديث مفتاح الـ AI) ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 TELEGRAM_TOKEN = "8904101091:AAFgqwgqp78qaUBxX0b1WeNl50VM8yFw7sU"
-AI_API_KEY = "Sk-or-v1-48823f33467ffd19b0f44d3e775a9d2efbc012dcd7ab637e7a543b12a97128fc"
+AI_API_KEY = "Sk-or-v1-243c7dc34e217e4f78cadac6f611f60431a6c3286d590fe9fdac6412a6cf184e"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -216,14 +216,11 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # --- 🎬 دالة التشغيل الرئيسية المصلحة ---
 def main():
-    # 1. تشغيل خادم ويب Flask في خيط (Thread) منفصل
     Thread(target=run_web_server, daemon=True).start()
     
-    # 2. بناء تطبيق التليجرام
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.ALL, handle_main_flow))
     
-    # 3. تهيئة حلقة الأحداث (Event Loop) لضمان التوافق
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
@@ -232,6 +229,5 @@ def main():
     print("🚀 المنظومة انطلقت بنجاح تام...")
     app.run_polling(drop_pending_updates=True)
 
-# تصحيح شرط التشغيل الأساسي للبايثون
 if __name__ == '__main__':
     main()
