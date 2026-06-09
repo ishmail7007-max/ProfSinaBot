@@ -8,7 +8,6 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
 # --- ⚙️ إعداد بيئة الـ Event Loop بأمان للسيرفر ---
-# حل مشكلة: There is no current event loop تلقائياً قبل بناء التطبيق
 try:
     global_loop = asyncio.get_event_loop()
 except RuntimeError:
@@ -41,15 +40,12 @@ server = Flask('')
 def home():
     return "🟢 منظومة البروفيسور سينا تعمل بكفاءة حركية سحابية تامة وجاهزة لاستقبال البيانات..."
 
-# استقبال الرسائل الفورية من تليجرام وتحويلها للبوت مباشرة
 @server.route(f'/{TELEGRAM_TOKEN}', methods=['POST'])
 def telegram_webhook():
     if request.method == "POST":
         try:
             update_json = request.get_json(force=True)
             update_obj = Update.de_json(update_json, tg_application.bot)
-            
-            # دفع التحديث إلى طابور المعالجة بأمان متوافق مع خوادم الويب
             global_loop.call_soon_threadsafe(tg_application.update_queue.put_nowait, update_obj)
         except Exception as e:
             print(f"❌ Webhook Data Error: {e}")
@@ -122,12 +118,18 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
         model_name = "meta-llama/llama-3-8b-instruct:free"
 
     payload = {"model": model_name, "messages": messages, "temperature": SYSTEM_CONFIG["ai_temperature"]}
+    
     async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(url, headers=headers, json=payload)
-        if response.status_code == 200:
-            return response.json()['choices'][0]['message']['content']
-        else:
-            return f"❌ خطأ في الخادم السحابي لـ AI (كود الحالة: {response.status_code})"
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            if response.status_code == 200:
+                return response.json()['choices'][0]['message']['content']
+            else:
+                print(f"❌ OpenRouter Error Log: Status {response.status_code} - {response.text}")
+                return f"❌ خطأ في خادم الذكاء الاصطناعي (كود الحالة: {response.status_code})"
+        except Exception as api_err:
+            print(f"❌ HTTP Request Exception: {api_err}")
+            return f"❌ فشل الاتصال بمزود الذكاء الاصطناعي: {str(api_err)}"
 
 async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
     try:
@@ -160,6 +162,8 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message: return
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
+        
+        print(f"📥 استلمنا رسالة من المستخدم {user_id}: {user_text[:50]}")
         
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
@@ -198,23 +202,26 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         epi_alerts = predict_epidemiology_and_risks(str(user_text))
         drug_alerts = check_drug_interactions(str(user_text))
         
+        # استدعاء الذكاء الاصطناعي
         raw_output = await consult_advanced_medical_system(content_payload, is_media, history_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
-        try:
-            if "---START_REP---" in raw_output:
+        # استخراج النص بأمان وبدون التسبب في صمت البوت
+        rep = raw_output
+        if "---START_REP---" in raw_output:
+            try:
                 rep = raw_output.split("---START_REP---")[1].split("---END_REP---")[0].strip()
-            else:
+            except Exception:
                 rep = raw_output
-        except:
-            rep = raw_output
-            
+
         await save_to_supabase_advanced(patient_name, rep[:500] + "...", "عام", "مستقرة")
         rights_footer = f"\n\n👑 *[ميثاق الملكية وحقوق البرمجة]:* تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
         rep_with_rights = rep + rights_footer
         
-        if drug_alerts: await update.message.reply_text(drug_alerts, parse_mode="Markdown")
-        if epi_alerts: await update.message.reply_text(epi_alerts, parse_mode="Markdown")
+        if drug_alerts: 
+            await update.message.reply_text(drug_alerts, parse_mode="Markdown")
+        if epi_alerts: 
+            await update.message.reply_text(epi_alerts, parse_mode="Markdown")
         
         chunks = split_medical_text(rep_with_rights)
         await safe_edit_or_send(processing_message, chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None, parse_mode="Markdown")
@@ -222,6 +229,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(chunk, parse_mode="Markdown")
             
     except Exception as e:
+        print(f"❌ Critical Error in handle_main_flow: {e}")
         try:
             await update.message.reply_text(f"❌ حدث خطأ داخلي أثناء المعالجة: {str(e)}")
         except: pass
@@ -248,7 +256,6 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
 tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
 async def init_webhook():
-    # تهيئة داخلية آمنة للبوت لربط الأزرار والعمليات
     await tg_application.initialize()
     await tg_application.start()
     await tg_application.bot.set_webhook(
@@ -257,12 +264,10 @@ async def init_webhook():
     )
     print("🚀 تم تفعيل الـ Webhook وربطه بنجاح مع السيرفر السحابي...")
 
-# تشغيل دالة التهيأة داخل الـ loop الحالي المستقر
 global_loop.run_until_complete(init_webhook())
 
-# --- 🌐 تشغيل خادم Flask الفعلي للحفاظ على استمرارية البرنامج الحية ---
+# --- 🌐 تشغيل خادم Flask الفعلي ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"📡 خادم Flask ينطلق الآن بنجاح على المنفذ: {port}")
-    # تشغيل السيرفر وبقاء الكود حياً لاستقبال الـ Webhook دون تعارض
     server.run(host="0.0.0.0", port=port)
