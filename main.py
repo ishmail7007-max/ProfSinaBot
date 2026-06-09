@@ -44,7 +44,8 @@ async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Ma
 # --- 🔗 البيانات والمفاتيح الحية للبروفيسور إسماعيل مباشرة ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
-TELEGRAM_TOKEN = "8802669339:AAHNqI3IKQmk9HjygqrlT4UK0L5nCYYCb_c"
+# 🛠️ تم تحديث التوكن السيادي الجديد هنا بنجاح
+TELEGRAM_TOKEN = "8802669339:AAEWELhbZX0Z28ShzmhHjPMmChB4sST_6j4"
 AI_API_KEY = "AQ.Ab8RN6Lg5Ds0GlzX1QVOof8WtvxGl48L8BlsftaOUJWdFtK-VQ"
 
 DEVELOPER_CHAT_ID = 1550103852 
@@ -106,7 +107,7 @@ async def consult_advanced_medical_system(content_text, is_media=False, history_
         "إذا كانت طبية، صغ المخرج بالتالي:\n---START_DISC---\nنقاش العباقرة وتفنيدهم الطبي بناءً على كبار المراجع العلمية.\n---END_DISC---\n---START_REP---\nالتقرير الاستشاري النهائي الشامل والمنظم للبروفيسور سينا (شاملاً التحليل البصري أو المخبري مع التمسك بالمصطلحات الثنائية).\n---END_REP---\n---START_SYS---\nالتخصص: [تخصص الحالة]\nالخطورة: [حرجة، متوسطة، مستقرة]\nالنواقص: [3 أسئلة استجوابية سريرية، أو 'لا يوجد']\n---END_SYS---"
     )
     
-    # 🚀 تحديث الرابط والهيكل ليتوافق مع محرك Google Gemini الحركي المتقدم
+    # 🚀 خوادم Google Gemini الحركية المتصلة بمفتاحك مباشرة
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     payload = {
@@ -241,7 +242,7 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         text = ("🩻 *[محرك التشخيص التفريقي / Differential Diagnosis (DDx)]*\n──────────────────\nميزة خارقة للفرز وفحص التشابه السريري بموجب دليل *UpToDate* المتقدم:\n\n✍️ *خطوات الفحص والاستعمال:*\nقم بكتابة العرض الرئيسي للمريض فقط (مثال: *ألم صدر حاد / Acute Chest Pain* أو *صداع مفاجئ / Sudden Headache*) وأرسله مباشرة.\n\n🧠 سيقوم البروفيسور سينا بسرد مصفوفة الاحتمالات الطبية المتطابقة مع هذا العرض مرتبة من الأشد خطورة ونوعية إلى الأقل، باللغتين الطبية والعربية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
-        text = ("🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n──────────────────\nبوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n🔢 *العمليات الحسابية المدعومة فوراً:*\n1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n3️⃣ *مؤشر كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على وزن وطول المريض.\n\n✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية في رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._")
+        text = ("🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n──────────────────\nبوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n🔢 *العمليات الحسابية المدعومة فوراً:*\n1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n3️⃣ *مؤشر كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على وزن وطول المريض.\n\n✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية in رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
         text = ("💊 *[رادار السلامة وفحص التعارضات / Drug Interactions]*\n──────────────────\nلحماية المرضى من الصدمات الدوائية والتفاعلات العكسية الكيميائية الحادة:\n\n✍️ *طريقة المطابقة الحية:*\nقم بكتابة أسماء العلاجات مجتمعة in رسالة واحدة (باللغة العربية أو مصطلحاتها الإنجليزية العلمية) مثل: *(Enalapril + Spironolactone)*.\n\n🔬 سيقوم السيرفر بمقاطعتها فوراً للتأكد من عدم وجود تداخل أسود خطير يؤثر على مؤشرات المريض الحيوية.")
