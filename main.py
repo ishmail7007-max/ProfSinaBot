@@ -19,7 +19,9 @@ SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
-AI_API_KEY = "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"
+
+# 🟢 تم تحديث مفتاحك الجديد والشغال بنجاح هنا
+AI_API_KEY = "Sk-or-v1-fdabfad5618d5a24fe958d919b2bba0a7f5f4b5138e3b71ad7bdc8400bd6deb1"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -39,7 +41,6 @@ server = Flask('')
 is_bot_initialized = False
 
 async def init_bot_components():
-    """ تهيئة البوت بسلام وإعداد الذاكرة والربط دون تشغيل متكرر للمحرك """
     global is_bot_initialized
     if not is_bot_initialized:
         await tg_application.initialize()
@@ -48,7 +49,6 @@ async def init_bot_components():
 
 @server.before_request
 def ensure_bot_is_ready():
-    """ التأكد من اكتمال التهيئة مع أول إشارة ويب تصل إلى السيرفر """
     if not is_bot_initialized:
         try:
             global_loop.run_until_complete(init_bot_components())
@@ -64,13 +64,8 @@ def telegram_webhook():
     if request.method == "POST":
         try:
             update_json = request.get_json(force=True)
-            
-            # تحويل البيانات القادمة إلى كائن تحديث تابع لتليجرام
             update_obj = Update.de_json(update_json, tg_application.bot)
-            
-            # معالجة التحديث فوراً وبشكل متزامن وبأعلى سرعة ممكنة دون طوابير انتظار معقدة
             global_loop.run_until_complete(tg_application.process_update(update_obj))
-            
         except Exception as e:
             print(f"❌ Webhook Processing Error: {e}")
     return "OK", 200
@@ -271,22 +266,18 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# ربط دالة التحكم الأساسية بالتطبيق لمعالجة البيانات الواردة مباشرة ومباشرة
 tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
-# لإخبار خادم تليجرام أن الرابط السحابي لـ Render هو المعتمد لاستقبال الرسائل دائمًا
 async def set_webhook_url():
     async with tg_application.bot:
         await tg_application.bot.set_webhook(url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}")
-        print("🔗 [تأكيد]: تم إعادة ضبط رابط الـ Webhook مع خادم تليجرام بنجاح!")
+        print("🔗 [تأكيد]: تم إعادة ضبط رابط الـ Webhook بنجاح!")
 
 try:
     global_loop.run_until_complete(set_webhook_url())
 except Exception as e:
     print(f"⚠️ تفادي خطأ تهيئة الـ Webhook الخارجي: {e}")
 
-# --- 🌐 تشغيل خادم Flask الفعلي الحاضن للتطبيق السحابي ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"📡 خادم Flask ينطلق بنجاح على المنفذ: {port}")
     server.run(host="0.0.0.0", port=port)
