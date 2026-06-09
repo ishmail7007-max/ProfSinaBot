@@ -4,16 +4,24 @@ import asyncio
 import httpx
 import base64
 from threading import Thread
-from flask import Flask
+from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# --- 🌐 خادم الويب لمنع السيرفر من النوم ---
+# --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
 server = Flask('')
 
 @server.route('/')
 def home():
-    return "🟢 منظومة البروفيسور سينا تعمل بأعلى كفاءة حركية وبدون أخطاء تزامنية..."
+    return "🟢 منظومة البروفيسور سينا تعمل بأعلى كفاءة حركية سحابية..."
+
+# نافذة استقبال التحديثات الفورية من تليجرام وتحويلها للبوت
+@server.route('/8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw', methods=['POST'])
+def telegram_webhook():
+    if request.method == "POST":
+        update_json = request.get_json(force=True)
+        asyncio.run(tg_application.update_queue.put(Update.de_json(update_json, tg_application.bot)))
+    return "OK", 200
 
 def run_web_server():
     port = int(os.environ.get("PORT", 8080))
@@ -23,10 +31,8 @@ def run_web_server():
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 
-# 🔒 التوكن الجديد الحصري والآمن للبوت الخاص بك
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
-
-AI_API_KEY = "Sk-or-v1-243c7dc34e217e4f78cadac6f611f60431a6c3286d590fe9fdac6412a6cf184e"
+AI_API_KEY = "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"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -143,6 +149,16 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
         
+        # الترحيب عند إرسال /start
+        if user_text == "/start":
+            reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
+            await update.message.reply_text(
+                "🏥 *أهلاً بك في منظومة البروفيسور سينا للتشخيص الطبي المتقدم.*\n\nالمنظومة متصلة بالسحابة وجاهزة لاستقبال الحالات والتقارير الطبية بصرياً وسريرياً.",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            return
+
         admin_buttons = ["📈 تقرير الأداء الحركي وتحليل الحالات", "📊 الخزنة السحابية", "📥 سحب داتا المرضى", "📚 تبديل المرجع: AMBOSS/Oxford", "📢 إذاعة للمشتركين", "🧹 تصفير الذاكرة المؤقتة", "🚨 تشغيل/إيقاف المنظومة الطبية"]
         if user_id == DEVELOPER_CHAT_ID and user_text in admin_buttons:
             await handle_admin_buttons(update, context, user_text)
@@ -208,7 +224,7 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
         await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة in رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
         await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
 
@@ -217,20 +233,30 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# --- 🎬 دالة التشغيل الرئيسية ---
+# --- 🎬 دالة التشغيل الرئيسية الحركية السحابية ---
 def main():
+    global tg_application
+    # تشغيل خادم الويب فلاسك في الخلفية
     Thread(target=run_web_server, daemon=True).start()
     
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(MessageHandler(filters.ALL, handle_main_flow))
+    # إعداد وتجهيز بوت تليجرام
+    tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
     
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # تهيئة تطبيق تليجرام وبدء استقبال البيانات
+    asyncio.run(tg_application.initialize())
+    asyncio.run(tg_application.start())
     
-    loop.run_until_complete(app.bot.delete_webhook(drop_pending_updates=True))
+    # 🌟 التفعيل والربط المباشر مع رابط Render الجديد عبر Webhook الحقيقي
+    WEBHOOK_URL = f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}"
+    asyncio.run(tg_application.bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True))
     
-    print("🚀 المنظومة انطلقت بنجاح تام...")
-    app.run_polling(drop_pending_updates=True)
+    print("🚀 تم تفعيل الـ Webhook السحابي المشترك والمنظومة مستقرة...")
+    
+    # إبقاء السكريبت حياً
+    import time
+    while True:
+        time.sleep(1)
 
 if __name__ == '__main__':
     main()
