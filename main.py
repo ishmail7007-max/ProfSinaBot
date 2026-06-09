@@ -22,7 +22,10 @@ def run_web_server():
 # --- 🔗 مفاتيح الربط السحابي الحية ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
-TELEGRAM_TOKEN = "8904101091:AAFgqwgqp78qaUBxX0b1WeNl50VM8yFw7sU"
+
+# 🔒 التوكن الجديد الحصري والآمن للبوت الخاص بك
+TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
+
 AI_API_KEY = "Sk-or-v1-243c7dc34e217e4f78cadac6f611f60431a6c3286d590fe9fdac6412a6cf184e"
 
 DEVELOPER_CHAT_ID = 1550103852 
@@ -205,7 +208,7 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
         await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة in رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
         await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
 
