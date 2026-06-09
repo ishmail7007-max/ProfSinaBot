@@ -20,8 +20,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 
-# 🟢 تم تصحيح الحرف الأول ليكون صغير (sk-) ليتوافق مع معايير OpenRouter
-AI_API_KEY = "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"
+# 🔑 تم وضع مفتاحك الجديد والنشط هنا بنجاح
+AI_API_KEY = "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"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -122,8 +122,8 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
     
     url = "https://openrouter.ai/api/v1/chat/completions"
     
-    # 🔒 تحصين المفتاح برمجياً وتحويله لحروف صغيرة لتفادي أي خطأ إملائي من لوحة المفاتيح
-    sanitized_key = AI_API_KEY.strip().lower()
+    # تحصين وقص أي فراغات زائدة قد تسقط أثناء النسخ
+    sanitized_key = AI_API_KEY.strip()
     headers = {"Authorization": f"Bearer {sanitized_key}", "Content-Type": "application/json"}
 
     if is_media:
