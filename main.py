@@ -44,9 +44,10 @@ async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Ma
 # --- 🔗 البيانات والمفاتيح الحية للبروفيسور إسماعيل مباشرة ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
-# 🛠️ تم تحديث التوكن السيادي الجديد هنا بنجاح
 TELEGRAM_TOKEN = "8802669339:AAEWELhbZX0Z28ShzmhHjPMmChB4sST_6j4"
-AI_API_KEY = "AQ.Ab8RN6Lg5Ds0GlzX1QVOof8WtvxGl48L8BlsftaOUJWdFtK-VQ"
+
+# 🔑 تم وضع مفتاحك الخاص والمؤمن لـ OpenRouter هنا بنجاح
+AI_API_KEY = "Sk-or-v1-48823f33467ffd19b0f44d3e775a9d2efbc012dcd7ab637e7a543b12a97128fc"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -107,20 +108,21 @@ async def consult_advanced_medical_system(content_text, is_media=False, history_
         "إذا كانت طبية، صغ المخرج بالتالي:\n---START_DISC---\nنقاش العباقرة وتفنيدهم الطبي بناءً على كبار المراجع العلمية.\n---END_DISC---\n---START_REP---\nالتقرير الاستشاري النهائي الشامل والمنظم للبروفيسور سينا (شاملاً التحليل البصري أو المخبري مع التمسك بالمصطلحات الثنائية).\n---END_REP---\n---START_SYS---\nالتخصص: [تخصص الحالة]\nالخطورة: [حرجة، متوسطة، مستقرة]\nالنواقص: [3 أسئلة استجوابية سريرية، أو 'لا يوجد']\n---END_SYS---"
     )
     
-    # 🚀 خوادم Google Gemini الحركية المتصلة بمفتاحك مباشرة
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_API_KEY}"
-    headers = {"Content-Type": "application/json"}
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {AI_API_KEY}",
+        "Content-Type": "application/json"
+    }
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": SYSTEM_CONFIG["ai_temperature"]
-        }
+        "model": "google/gemini-2.5-flash:free" if is_media else "meta-llama/llama-3-8b-instruct:free",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": SYSTEM_CONFIG["ai_temperature"]
     }
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(url, headers=headers, json=payload)
         if response.status_code == 200:
-            return response.json()['candidates'][0]['content']['parts'][0]['text']
+            return response.json()['choices'][0]['message']['content']
         else:
             return "❌ خطأ سحابي في معالجة الـ AI"
 
@@ -236,16 +238,16 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     reply_markup = get_user_reply_keyboard()
     if button_text == "🩺 استشارة طبية جديدة":
         context.user_data.clear()
-        text = ("🩺 *[تهيئة غرف الكونسلتو الطبي المشترك]*\n──────────────────\nالمنظومة in وضع الاستعداد التام لاستقبال المعطيات والتشخيص عبر مراجع كبرى مجتمعة (*UpToDate, AMBOSS, Oxford, WHO*).\n\n📝 *صيغ الإرسال المدعومة فخامةً:*\n• اكتب الشكوى الرئيسية (Chief Complaint) والأعراض الحالية بالتفصيل.\n• أو أرسل صورة للتحاليل الطبية أو الأشعة التشخيصية بصرياً.\n• أو سجل رسالة صوتية واضحة تشرح حالة المريض الطارئة.")
+        text = ("🩺 *[تهيئة غرف الكونسلتو الطبي المشترك]*\n──────────────────\nالمنظومة في وضع الاستعداد التام لاستقبال المعطيات والتشخيص عبر مراجع كبرى مجتمعة (*UpToDate, AMBOSS, Oxford, WHO*).\n\n📝 *صيغ الإرسال المدعومة فخامةً:*\n• اكتب الشكوى الرئيسية (Chief Complaint) والأعراض الحالية بالتفصيل.\n• أو أرسل صورة للتحاليل الطبية أو الأشعة التشخيصية بصرياً.\n• أو سجل رسالة صوتية واضحة تشرح حالة المريض الطارئة.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🩻 التشخيص التفريقي المتعدد":
         text = ("🩻 *[محرك التشخيص التفريقي / Differential Diagnosis (DDx)]*\n──────────────────\nميزة خارقة للفرز وفحص التشابه السريري بموجب دليل *UpToDate* المتقدم:\n\n✍️ *خطوات الفحص والاستعمال:*\nقم بكتابة العرض الرئيسي للمريض فقط (مثال: *ألم صدر حاد / Acute Chest Pain* أو *صداع مفاجئ / Sudden Headache*) وأرسله مباشرة.\n\n🧠 سيقوم البروفيسور سينا بسرد مصفوفة الاحتمالات الطبية المتطابقة مع هذا العرض مرتبة من الأشد خطورة ونوعية إلى الأقل، باللغتين الطبية والعربية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
-        text = ("🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n──────────────────\nبوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n🔢 *العمليات الحسابية المدعومة فوراً:*\n1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n3️⃣ *مؤشر كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على وزن وطول المريض.\n\n✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية in رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._")
+        text = ("🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n──────────────────\nبوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n🔢 *العمليات الحسابية المدعومة فوراً:*\n1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n3️⃣ *مؤشر كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على وزن وطول المريض.\n\n✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية في رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        text = ("💊 *[رادار السلامة وفحص التعارضات / Drug Interactions]*\n──────────────────\nلحماية المرضى من الصدمات الدوائية والتفاعلات العكسية الكيميائية الحادة:\n\n✍️ *طريقة المطابقة الحية:*\nقم بكتابة أسماء العلاجات مجتمعة in رسالة واحدة (باللغة العربية أو مصطلحاتها الإنجليزية العلمية) مثل: *(Enalapril + Spironolactone)*.\n\n🔬 سيقوم السيرفر بمقاطعتها فوراً للتأكد من عدم وجود تداخل أسود خطير يؤثر على مؤشرات المريض الحيوية.")
+        text = ("💊 *[رادار السلامة وفحص التعارضات / Drug Interactions]*\n──────────────────\nلحماية المرضى من الصدمات الدوائية والتفاعلات العكسية الكيميائية الحادة:\n\n✍️ *طريقة المطابقة الحية:*\nقم بكتابة أسماء العلاجات مجتمعة في رسالة واحدة (باللغة العربية أو مصطلحاتها الإنجليزية العلمية) مثل: *(Enalapril + Spironolactone)*.\n\n🔬 سيقوم السيرفر بمقاطعتها فوراً للتأكد من عدم وجود تداخل أسود خطير يؤثر على مؤشرات المريض الحيوية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
         text = ("🧬 *[محرك إدارة وتوجيه المضادات الحيوية / Antibiotic Stewardship]*\n──────────────────\nإضافة خارقة لمنع سوء استخدام العلاجات البكتيرية وتوجيه الاختيار التجريبي الذكي (*Empiric Therapy*):\n\n✍️ *آلية الاستعلام:*\nاكتب موضع الالتهاب أو التشخيص المبدئي (مثال: *التهاب مجاري بولية / UTI* أو *التهاب لوزتين حاد / Acute Tonsillitis*).\n\n🔬 سيقوم البروفيسور سينا بإعطائك خط الدفاع الأول للخطط العلاجية الصارمة بموجب أدلة الجودة العالمية، شاملاً الجرعات القياسية وفترات العلاج المثالية باللغتين الطبية والعربية.")
