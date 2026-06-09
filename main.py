@@ -8,25 +8,6 @@ from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
-server = Flask('')
-
-@server.route('/')
-def home():
-    return "🟢 منظومة البروفيسور سينا تعمل بأعلى كفاءة حركية سحابية..."
-
-# نافذة استقبال التحديثات الفورية من تليجرام وتحويلها للبوت
-@server.route('/8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw', methods=['POST'])
-def telegram_webhook():
-    if request.method == "POST":
-        update_json = request.get_json(force=True)
-        asyncio.run(tg_application.update_queue.put(Update.de_json(update_json, tg_application.bot)))
-    return "OK", 200
-
-def run_web_server():
-    port = int(os.environ.get("PORT", 8080))
-    server.run(host='0.0.0.0', port=port)
-
 # --- 🔗 مفاتيح الربط السحابي الحية ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
@@ -42,6 +23,28 @@ SYSTEM_CONFIG = {
     "ai_temperature": 0.2,
     "clinical_focus": "الكونسلتو العالمي المشترك: AMBOSS / UpToDate / Oxford / WHO Guidelines"
 }
+
+# --- ⚙️ بناء وتجهيز تطبيق تليجرام فوراً ليقرأه السيرفر ---
+tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
+# --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
+server = Flask('')
+
+@server.route('/')
+def home():
+    return "🟢 منظومة البروفيسور سينا تعمل بكفاءة حركية سحابية تامة وجاهزة لاستقبال البيانات..."
+
+# استقبال الرسائل الفورية من تليجرام وتحويلها للبوت مباشرة
+@server.route(f'/{TELEGRAM_TOKEN}', methods=['POST'])
+def telegram_webhook():
+    if request.method == "POST":
+        try:
+            update_json = request.get_json(force=True)
+            # إرسال التحديث إلى طابور المعالجة في البوت
+            asyncio.run(tg_application.update_queue.put(Update.de_json(update_json, tg_application.bot)))
+        except Exception as e:
+            print(f"Webhook Data Error: {e}")
+    return "OK", 200
 
 # --- ⚙️ الدوال المساعدة الآمنة ---
 async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Markdown"):
@@ -149,7 +152,6 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
         
-        # الترحيب عند إرسال /start
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
             await update.message.reply_text(
@@ -224,7 +226,7 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
         await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة in رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
         await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
 
@@ -233,30 +235,30 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# --- 🎬 دالة التشغيل الرئيسية الحركية السحابية ---
-def main():
-    global tg_application
-    # تشغيل خادم الويب فلاسك في الخلفية
-    Thread(target=run_web_server, daemon=True).start()
-    
-    # إعداد وتجهيز بوت تليجرام
-    tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
-    
-    # تهيئة تطبيق تليجرام وبدء استقبال البيانات
-    asyncio.run(tg_application.initialize())
-    asyncio.run(tg_application.start())
-    
-    # 🌟 التفعيل والربط المباشر مع رابط Render الجديد عبر Webhook الحقيقي
-    WEBHOOK_URL = f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}"
-    asyncio.run(tg_application.bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True))
-    
-    print("🚀 تم تفعيل الـ Webhook السحابي المشترك والمنظومة مستقرة...")
-    
-    # إبقاء السكريبت حياً
-    import time
-    while True:
-        time.sleep(1)
+# --- 🚀 إقلاع المنظومة السحابية فوراً عند قراءة الملف ---
+tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
-if __name__ == '__main__':
-    main()
+# تهيئة تطبيق تليجرام وبدء استقبال التحديثات تزامناً مع خادم الويب
+try:
+    loop = asyncio.get_event_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+if loop.is_running():
+    # إذا كان الـ Loop يعمل بالفعل داخل Gunicorn، نقوم بجدولة المهام السحابية
+    loop.create_task(tg_application.initialize())
+    loop.create_task(tg_application.start())
+    loop.create_task(tg_application.bot.set_webhook(
+        url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}",
+        drop_pending_updates=True
+    ))
+else:
+    loop.run_until_complete(tg_application.initialize())
+    loop.run_until_complete(tg_application.start())
+    loop.run_until_complete(tg_application.bot.set_webhook(
+        url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}",
+        drop_pending_updates=True
+    ))
+
+print("🚀 تم دمج إقلاع البوت والـ Webhook بنجاح مع خادم الويب الأساسي...")
