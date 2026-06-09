@@ -19,7 +19,7 @@ def run_web_server():
     port = int(os.environ.get("PORT", 8080))
     server.run(host='0.0.0.0', port=port)
 
-# --- 🔗 مفاتيح الربط السحابي الحية ---
+# --- 🔗 مفاتيح الربط السحابي الحية (كما هي بناءً على طلبك) ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 TELEGRAM_TOKEN = "8904101091:AAFgqwgqp78qaUBxX0b1WeNl50VM8yFw7sU"
@@ -78,8 +78,7 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
     base_prompt = (
         "أنت الآن 'منظومة البروفيسور سينا للكونسلتو الطبي الأعلى والتشخيص البصري والسريري المتقدم'.\n"
         f"التركيز الإكلينيكي والمراجع المفعلة حالياً: {SYSTEM_CONFIG['clinical_focus']}\n"
-
-"[قاعدة صارمة للمصطلحات والرد]:\n"
+        "[قاعدة صارمة للمصطلحات والرد]:\n"
         "يجب صياغة كافة المصطلحات الطبية والأمراض باللغتين معاً داخل التقرير: العربية والإنجليزية بين قوسين.\n"
         f"{history_prompt}\n"
         "إذا كانت طبية أو تحاليل، صغ المخرج بالتالي:\n---START_DISC---\nنقاش العباقرة.\n---END_DISC---\n---START_REP---\nالتقرير الاستشاري النهائي للمريض.\n---END_REP---\n---START_SYS---\nالتخصص: عام\nالخطورة: مستقرة\nالنواقص: لا يوجد\n---END_SYS---"
@@ -154,7 +153,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_media = False
         content_payload = user_text
 
-if update.message.photo:
+        if update.message.photo:
             is_media = True
             processing_message = await update.message.reply_text("📸 *جاري استقبال التقرير الطبي وتشفيره بصرياً...*")
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
@@ -215,24 +214,24 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# --- 🎬 دالة التشغيل الرئيسية المصلحة للتوافق التام ---
+# --- 🎬 دالة التشغيل الرئيسية المصلحة ---
 def main():
-    # 1. تشغيل خادم ويب فلاسك في خيط منفصل
+    # 1. تشغيل خادم ويب Flask في خيط (Thread) منفصل
     Thread(target=run_web_server, daemon=True).start()
     
-    # 2. بناء التطبيق وتجهيزه
+    # 2. بناء تطبيق التليجرام
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.ALL, handle_main_flow))
     
-    # 3. استخدام حلقة أحداث مخصصة لتفادي تضارب بايثون 3.14
+    # 3. تهيئة حلقة الأحداث (Event Loop) لضمان التوافق
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
-    # تنظيف الـ webhooks السابقة لضمان عدم حدوث تضارب
     loop.run_until_complete(app.bot.delete_webhook(drop_pending_updates=True))
     
-    print("🚀 المنظومة انطلقت بنجاح تام وتجاوزت مشاكل التزامن الحركي...")
+    print("🚀 المنظومة انطلقت بنجاح تام...")
     app.run_polling(drop_pending_updates=True)
 
-if name == 'main':
+# تصحيح شرط التشغيل الأساسي للبايثون
+if __name__ == '__main__':
     main()
