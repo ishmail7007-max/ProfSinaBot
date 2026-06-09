@@ -20,8 +20,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 
-# 🔑 تم وضع مفتاحك الجديد والنشط هنا بنجاح
-AI_API_KEY = "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"
+# 🔑 تم تحديث المفتاح الجديد والنشط هنا بعد ربط الحساب بنجاح
+AI_API_KEY = "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"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -122,7 +122,6 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
     
     url = "https://openrouter.ai/api/v1/chat/completions"
     
-    # تحصين وقص أي فراغات زائدة قد تسقط أثناء النسخ
     sanitized_key = AI_API_KEY.strip()
     headers = {"Authorization": f"Bearer {sanitized_key}", "Content-Type": "application/json"}
 
@@ -260,7 +259,7 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
         await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة in رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
         await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
 
