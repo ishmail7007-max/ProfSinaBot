@@ -3,10 +3,11 @@ import re
 import sys
 import asyncio
 import httpx
+import base64
 from threading import Thread
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
 # --- خادم الويب المصغر لمنع السيرفر من النوم ---
 server = Flask('')
@@ -19,18 +20,17 @@ def run_web_server():
     port = int(os.environ.get("PORT", 8080))
     server.run(host='0.0.0.0', port=port)
 
-# 🔄 دالة الإنعاش الذاتي الخارقة لمنع السيرفر المجاني من النوم نهائياً
 def self_ping_voodoo():
     import time
     time.sleep(30)
     while True:
         try:
+            # عمل بينج داخلي للحفاظ على حيوية الهيكل البرمجي
             httpx.get("http://localhost:8080/")
         except:
             pass
         time.sleep(600)
 
-# --- إضافة دالة الأمان لمنع خطأ Message can't be edited ---
 async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Markdown"):
     try:
         await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
@@ -41,11 +41,9 @@ async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Ma
             pass
         await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
 
-# --- 🔗 البيانات والمفاتيح الحية للبروفيسور إسماعيل مباشرة ---
+# --- 🔗 البيانات ومفاتيح الربط السحابي ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
-
-# 🎯 تم تحديث التوكن الجديد هنا بنجاح لإنهاء خطأ الـ Conflict تماماً
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 TELEGRAM_TOKEN = "8904101091:AAFgqwgqp78qaUBxX0b1WeNl50VM8yFw7sU"
 AI_API_KEY = "Sk-or-v1-48823f33467ffd19b0f44d3e775a9d2efbc012dcd7ab637e7a543b12a97128fc"
 
@@ -95,7 +93,7 @@ async def get_patient_history_from_supabase(full_name):
     except:
         return None
 
-async def consult_advanced_medical_system(content_payload, is_media=False, history_context="", missing_answers=""):
+async def consult_advanced_medical_system(content_payload, is_media=False, history_context="", missing_answers="", mime_type="image/jpeg"):
     history_prompt = f"\n[سجل التاريخ المرضي السابق / Past Medical History]:\n{history_context}" if history_context else "\n(أول زيارة للمريض)."
     
     base_prompt = (
@@ -114,12 +112,12 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
         "Content-Type": "application/json"
     }
 
-    if is_media and content_payload.startswith("http"):
+    if is_media:
         messages = [{
             "role": "user",
             "content": [
-                {"type": "text", "text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة."},
-                {"type": "image_url", "image_url": {"url": content_payload}}
+                {"type": "text", "text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة تشخيصية عالية."},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{content_payload}"}}
             ]
         }]
         model_name = "google/gemini-2.5-flash:free"
@@ -198,9 +196,13 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if update.message.photo:
             is_media = True
-            processing_message = await update.message.reply_text("📸 *جاري تحميل ومعالجة الملف البصري طبيّاً...*")
+            processing_message = await update.message.reply_text("📸 *جاري تحميل وتشفير التقرير الطبي بصرياً...*")
+            
+            # تحميل ملف الصورة محلياً داخل حاوية السيرفر وتشفيره بصيغة Base64 لحمايته من الفشل السحابي
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
-            content_payload = photo_file.file_path  
+            img_buffer = await photo_file.download_as_bytearray()
+            content_payload = base64.b64encode(img_buffer).decode('utf-8')
+            
             await processing_message.delete()
         elif update.message.voice:
             user_text = "[رسالة سريرية صوتية]"
@@ -218,8 +220,8 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         patient_name = "حالة سريرية طارئة"
         history_text = await get_patient_history_from_supabase(patient_name) if not missing_answers else ""
-        epi_alerts = predict_epidemiology_and_risks(str(content_payload))
-        drug_alerts = check_drug_interactions(str(content_payload))
+        epi_alerts = predict_epidemiology_and_risks(str(user_text))
+        drug_alerts = check_drug_interactions(str(user_text))
         
         raw_output = await consult_advanced_medical_system(content_payload, is_media, history_text, missing_answers)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
@@ -273,13 +275,13 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         text = ("🩻 *[محرك التشخيص التفريقي / Differential Diagnosis (DDx)]*\n──────────────────\nميزة خارقة للفرز وفحص التشابه السريري بموجب دليل *UpToDate* المتقدم:\n\n✍️ *خطوات الفحص والاستعمال:*\nقم بكتابة العرض الرئيسي للمريض فقط (مثال: *ألم صدر حاد / Acute Chest Pain* أو *صداع مفاجئ / Sudden Headache*) وأرسله مباشرة.\n\n🧠 سيقوم البروفيسور سينا بسرد مصفوفة الاحتمالات الطبية المتطابقة مع هذا العرض مرتبة من الأشد خطورة ونوعية إلى الأقل، باللغتين الطبية والعربية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
-        text = ("🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n──────────────────\nبوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n🔢 *العمليات الحسابية المدعومة فوراً:*\n1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n3️⃣ *مؤشن كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على وزن وطول المريض.\n\n✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية في رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._")
+        text = ("🧮 *[الحاسبة السريرية التفاعلية المتقدمة / Clinical Calculators]*\n──────────────────\nبوابة حساب الجرعات والمعادلات الحرجة بموجب بروتوكولات *Oxford السريرية* الصارمة:\n\n🔢 *العمليات الحسابية المدعومة فوراً:*\n1️⃣ *جرعات الأطفال (Pediatric Dosing):* اكتب وزن الطفل واسم المادة الفعالة للحصول على الحساب الدقيق لحجم الجرعة اليومية.\n2️⃣ *معدل وظائف الكلى (GFR Calculation):* حساب تصفية الكلى بناءً على قيمة الكرياتينين، العمر، والوزن.\n3️⃣ *مؤشر كتلة الجسم (BMI):* تقييم الحالة التغذوية بناءً على وزن وطول المريض.\n\n✍️ _اكتب العملية الحسابية المطلوبة مع الأرقام الحيوية في رسالة واحدة وسيقوم النظام بحسابها رياضياً وسريرياً ومطابقتها فوراً._")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
         text = ("💊 *[رادار السلامة وفحص التعارضات / Drug Interactions]*\n──────────────────\nلحماية المرضى من الصدمات الدوائية والتفاعلات العكسية الكيميائية الحادة:\n\n✍️ *طريقة المطابقة الحية:*\nقم بكتابة أسماء العلاجات مجتمعة في رسالة واحدة (باللغة العربية أو مصطلحاتها الإنجليزية العلمية) مثل: *(Enalapril + Spironolactone)*.\n\n🔬 سيقوم السيرفر بمقاطعتها فوراً للتأكد من عدم وجود تداخل أسود خطير يؤثر على مؤشرات المريض الحيوية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
-        text = ("🧬 *[محرك إدارة وتوجيه المضادات الحيوية / Antibiotic Stewardship]*\n──────────────────\nإضافة خارقة لمنع سوء استخدام العلاجات البكتيرية وتوجيه الاختيار التجريبي الذكي (*Empiric Therapy*):\n\n✍️ *آلية الاستعلام:*\nاكتب موضع الالتهاب أو التشخيص المبدئي (مثال: *التهاب مجاري بولية / UTI* أو *التهاب لوزتين حاد / Acute Tonsillitis*).\n\n🔬 سيقوم البروفيسور سينا بإعطائك خط الدفاع الأول للخطط علاجية الصارمة بموجب أدلة الجودة العالمية، شاملاً الجرعات القياسية وفترات العلاج المثالية باللغتين الطبية والعربية.")
+        text = ("🧬 *[محرك إدارة وتوجيه المضادات الحيوية / Antibiotic Stewardship]*\n──────────────────\nإضافة خارقة لمنع سوء استخدام العلاجات البكتيرية وتوجيه الاختيار التجريبي الذكي (*Empiric Therapy*):\n\n✍️ *آلية الاستعلام:*\nاكتب موضع الالتهاب أو التشخيص المبدئي (مثال: *التهاب مجاري بولية / UTI* أو *التهاب لوزتين حاد / Acute Tonsillitis*).\n\n🔬 سيقوم البروفيسور سينا بإعطائك خط الدفاع الأول للخطط العلاجية الصارمة بموجب أدلة الجودة العالمية، شاملاً الجرعات القياسية وفترات العلاج المثالية باللغتين الطبية والعربية.")
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "📊 مؤشر الفرز الحركي":
         headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
