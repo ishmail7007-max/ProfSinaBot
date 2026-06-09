@@ -7,6 +7,14 @@ from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
+# --- ⚙️ إعداد بيئة الـ Event Loop بأمان للسيرفر ---
+# حل مشكلة: There is no current event loop تلقائياً قبل بناء التطبيق
+try:
+    global_loop = asyncio.get_event_loop()
+except RuntimeError:
+    global_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(global_loop)
+
 # --- 🔗 مفاتيح الربط السحابي الحية ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
@@ -26,9 +34,6 @@ SYSTEM_CONFIG = {
 # --- ⚙️ بناء وتجهيز تطبيق تليجرام فوراً ---
 tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-# دمج الـ Event Loop لضمان عدم حدوث تصادم أثناء استقبال الـ Webhook
-global_loop = asyncio.get_event_loop()
-
 # --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
 server = Flask('')
 
@@ -42,10 +47,9 @@ def telegram_webhook():
     if request.method == "POST":
         try:
             update_json = request.get_json(force=True)
-            # تحويل البيانات إلى كائن Update الخاص بتليجرام
             update_obj = Update.de_json(update_json, tg_application.bot)
             
-            # دفع التحديث إلى طابور المعالجة بأمان دون كسر الـ Event Loop المشتغل
+            # دفع التحديث إلى طابور المعالجة بأمان متوافق مع خوادم الويب
             global_loop.call_soon_threadsafe(tg_application.update_queue.put_nowait, update_obj)
         except Exception as e:
             print(f"❌ Webhook Data Error: {e}")
@@ -240,27 +244,25 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# --- 🚀 إقلاع المنظومة وتجهيز المهام السحابية المتزامنة ---
+# --- 🚀 إقلاع المنظومة الآمن وتحضير الـ Webhook وعلاقته بالـ Loop ---
 tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
-async def main_init():
-    # 1. تهيئة البوت وتشغيله داخلياً
+async def init_webhook():
+    # تهيئة داخلية آمنة للبوت لربط الأزرار والعمليات
     await tg_application.initialize()
     await tg_application.start()
-    # 2. ربط الـ Webhook مع سيرفر Render الخاص بك
     await tg_application.bot.set_webhook(
         url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}",
         drop_pending_updates=True
     )
-    print("🚀 تم ربط وتفعيل الـ Webhook بنجاح مع سيرفر تليجرام...")
+    print("🚀 تم تفعيل الـ Webhook وربطه بنجاح مع السيرفر السحابي...")
 
-# تنفيذ دالة التهيئة والربط
-global_loop.run_until_complete(main_init())
+# تشغيل دالة التهيأة داخل الـ loop الحالي المستقر
+global_loop.run_until_complete(init_webhook())
 
 # --- 🌐 تشغيل خادم Flask الفعلي للحفاظ على استمرارية البرنامج الحية ---
 if __name__ == "__main__":
-    # نأخذ المنفذ (Port) المخصص من المنصة تلقائياً أو نستخدم 5000 كافتراضي
     port = int(os.environ.get("PORT", 5000))
-    print(f"📡 خادم Flask ينطلق الآن على المنفذ: {port}")
-    # تشغيل السيرفر وبقاء الكود حياً للأبد لاستقبال الـ Webhook
+    print(f"📡 خادم Flask ينطلق الآن بنجاح على المنفذ: {port}")
+    # تشغيل السيرفر وبقاء الكود حياً لاستقبال الـ Webhook دون تعارض
     server.run(host="0.0.0.0", port=port)
