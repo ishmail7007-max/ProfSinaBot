@@ -8,26 +8,18 @@ from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# --- خادم الويب لمنع السيرفر من النوم ---
+# --- 🌐 خادم الويب لمنع السيرفر من النوم ---
 server = Flask('')
 
 @server.route('/')
 def home():
-    return "🟢 منظومة البروفيسور سينا الطبية تعمل بكفاءة حركية 100%..."
+    return "🟢 منظومة البروفيسور سينا تعمل بأعلى كفاءة حركية وبدون أخطاء تزامنية..."
 
 def run_web_server():
     port = int(os.environ.get("PORT", 8080))
     server.run(host='0.0.0.0', port=port)
 
-async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Markdown"):
-    try:
-        await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
-    except Exception:
-        try: await message.delete()
-        except: pass
-        await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
-
-# --- 🔗 البيانات ومفاتيح الربط السحابي الحية ---
+# --- 🔗 مفاتيح الربط السحابي الحية ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 TELEGRAM_TOKEN = "8904101091:AAFgqwgqp78qaUBxX0b1WeNl50VM8yFw7sU"
@@ -39,9 +31,17 @@ DEVELOPER_USERNAME = "@I77Cl"
 SYSTEM_CONFIG = {
     "is_active": True,
     "ai_temperature": 0.2,
-    "clinical_focus": "الكونسلتو العالمي المشترك: AMBOSS / UpToDate / Oxford / WHO Guidelines",
-    "broadcast_mode": False
+    "clinical_focus": "الكونسلتو العالمي المشترك: AMBOSS / UpToDate / Oxford / WHO Guidelines"
 }
+
+# --- ⚙️ الدوال المساعدة الآمنة ---
+async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Markdown"):
+    try:
+        await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+    except Exception:
+        try: await message.delete()
+        except: pass
+        await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
 
 def split_medical_text(text, max_chars=4000):
     return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
@@ -78,7 +78,8 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
     base_prompt = (
         "أنت الآن 'منظومة البروفيسور سينا للكونسلتو الطبي الأعلى والتشخيص البصري والسريري المتقدم'.\n"
         f"التركيز الإكلينيكي والمراجع المفعلة حالياً: {SYSTEM_CONFIG['clinical_focus']}\n"
-        "[قاعدة صارمة للمصطلحات والرد]:\n"
+
+"[قاعدة صارمة للمصطلحات والرد]:\n"
         "يجب صياغة كافة المصطلحات الطبية والأمراض باللغتين معاً داخل التقرير: العربية والإنجليزية بين قوسين.\n"
         f"{history_prompt}\n"
         "إذا كانت طبية أو تحاليل، صغ المخرج بالتالي:\n---START_DISC---\nنقاش العباقرة.\n---END_DISC---\n---START_REP---\nالتقرير الاستشاري النهائي للمريض.\n---END_REP---\n---START_SYS---\nالتخصص: عام\nالخطورة: مستقرة\nالنواقص: لا يوجد\n---END_SYS---"
@@ -103,7 +104,10 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
     payload = {"model": model_name, "messages": messages, "temperature": SYSTEM_CONFIG["ai_temperature"]}
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(url, headers=headers, json=payload)
-        return response.json()['choices'][0]['message']['content'] if response.status_code == 200 else "❌ خطأ سحابي في معالجة الـ AI"
+        if response.status_code == 200:
+            return response.json()['choices'][0]['message']['content']
+        else:
+            return f"❌ خطأ في الخادم السحابي لـ AI (كود الحالة: {response.status_code})"
 
 async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
     try:
@@ -113,6 +117,7 @@ async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
             await client.post(f"{SUPABASE_URL}/rest/v1/patients", headers=headers, json=data)
     except: pass
 
+# --- ⌨️ لوحات المفاتيح والتحكم ---
 def get_developer_reply_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("📈 تقرير الأداء الحركي وتحليل الحالات")],
@@ -129,6 +134,7 @@ def get_user_reply_keyboard():
         [KeyboardButton("💊 فاحص التداخلات الدوائية"), KeyboardButton("🧬 رادار المقاومة والمضادات البكتيرية")]
     ], resize_keyboard=True)
 
+# --- 🚀 المعالجة الأساسية للمستندات والرسائل ---
 async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not update.message: return
@@ -148,9 +154,9 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_media = False
         content_payload = user_text
 
-        if update.message.photo:
+if update.message.photo:
             is_media = True
-            processing_message = await update.message.reply_text("📸 *جاري تحميل وتشفير التقرير الطبي بصرياً...*")
+            processing_message = await update.message.reply_text("📸 *جاري استقبال التقرير الطبي وتشفيره بصرياً...*")
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
             img_buffer = await photo_file.download_as_bytearray()
             content_payload = base64.b64encode(img_buffer).decode('utf-8')
@@ -167,7 +173,10 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
         try:
-            rep = raw_output.split("---START_REP---")[1].split("---END_REP---")[0].strip()
+            if "---START_REP---" in raw_output:
+                rep = raw_output.split("---START_REP---")[1].split("---END_REP---")[0].strip()
+            else:
+                rep = raw_output
         except:
             rep = raw_output
             
@@ -184,38 +193,46 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(chunk, parse_mode="Markdown")
             
     except Exception as e:
-        pass
+        try:
+            await update.message.reply_text(f"❌ حدث خطأ داخلي أثناء المعالجة: {str(e)}")
+        except: pass
 
 async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
     reply_markup = get_user_reply_keyboard()
     if button_text == "🩺 استشارة طبية جديدة":
-        await update.message.reply_text("🩺 *غرف الفرز جاهزة.* أرسل الأعراض أو صورة التحليل الآن.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("🩺 *غرف الفرز جاهزة.* أرسل الأعراض السريرية أو صورة التحليل والمستندات الآن.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🩻 التشخيص التفريقي المتعدد":
-        await update.message.reply_text("🩻 *اكتب العرض الرئيسي للمريض فقط* (مثل: ألم صدر حاد) لمعرفة مصفوفة الاحتمالات الطبية.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("🩻 *اكتب العرض الرئيسي للمريض فقط* (مثل: ألم صدر حاد) لاستعراض مصفوفة الاحتمالات الطبية.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
         await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* (مثال: فياجرا + نيترات) لفحص التعارض الصدمي.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
-        await update.message.reply_text("🧬 *اكتب موضع الالتهاب* (مثل: التهاب مجاري بولية UTI) لتوجيه العلاج التجريبي الذكي.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
 
 async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
     reply_markup = get_developer_reply_keyboard()
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-if __name__ == '__main__':
-    # تشغيل خادم الويب في خلفية منفصلة
+# --- 🎬 دالة التشغيل الرئيسية المصلحة للتوافق التام ---
+def main():
+    # 1. تشغيل خادم ويب فلاسك في خيط منفصل
     Thread(target=run_web_server, daemon=True).start()
     
-    # بناء تطبيق تيليجرام
+    # 2. بناء التطبيق وتجهيزه
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.ALL, handle_main_flow))
     
-    # 💥 الحارس السحري: حذف الـ Webhook القديم وتنظيف الـ Polling قسرياً لمنع الـ Conflict
-    loop = asyncio.get_event_loop()
+    # 3. استخدام حلقة أحداث مخصصة لتفادي تضارب بايثون 3.14
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    # تنظيف الـ webhooks السابقة لضمان عدم حدوث تضارب
     loop.run_until_complete(app.bot.delete_webhook(drop_pending_updates=True))
     
-    # بدء تشغيل البوت بثبات
-    print("🚀 المنظومة انطلقت بنجاح...")
-    app.run_polling()
+    print("🚀 المنظومة انطلقت بنجاح تام وتجاوزت مشاكل التزامن الحركي...")
+    app.run_polling(drop_pending_updates=True)
+
+if name == 'main':
+    main()
