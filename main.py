@@ -16,7 +16,7 @@ except RuntimeError:
 
 # --- 🔗 مفاتيح الربط السحابي الحية ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInZiZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 AI_API_KEY = "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"
@@ -36,6 +36,33 @@ tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 # --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
 server = Flask('')
 
+# علم للتأكد من أن البوت تم تهيئته وتشغيله مرة واحدة فقط في الخلفية
+is_bot_started = False
+
+async def start_bot_background():
+    """ دالة تشغيل البوت وربطه بالويب هوك في الخلفية ليعمل مع Gunicorn """
+    global is_bot_started
+    if not is_bot_started:
+        await tg_application.initialize()
+        await tg_application.start()
+        # بدء قراءة الطابور ومعالجة الرسائل القادمة فوراً خلف الكواليس
+        await tg_application.updater.start_webhook(
+            listen="0.0.0.0",
+            port=0, # وهمي لأن المستقبل الفعلي هو Flask
+            webhook_url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}"
+        )
+        is_bot_started = True
+        print("🚀 [تأكيد حركي]: تم إقلاع محرك تليجرام الداخلي وسحب الرسائل من الطابور بنجاح!")
+
+@server.before_request
+def ensure_bot_is_running():
+    """ يتم استدعاء هذه الدالة تلقائياً عند أول طلب ويب للسيرفر لتشغيل محرك البوت """
+    if not is_bot_started:
+        try:
+            global_loop.run_until_complete(start_bot_background())
+        except Exception as e:
+            print(f"⚠️ خطأ أثناء محاولة تشغيل البوت في الخلفية: {e}")
+
 @server.route('/')
 def home():
     return "🟢 منظومة البروفيسور سينا تعمل بكفاءة حركية سحابية تامة وجاهزة لاستقبال البيانات..."
@@ -46,12 +73,14 @@ def telegram_webhook():
         try:
             update_json = request.get_json(force=True)
             update_obj = Update.de_json(update_json, tg_application.bot)
+            
+            # دفع التحديث للطابور ليقوم المحرك الخلفي بمعالجته فوراً
             global_loop.call_soon_threadsafe(tg_application.update_queue.put_nowait, update_obj)
         except Exception as e:
             print(f"❌ Webhook Data Error: {e}")
     return "OK", 200
 
-# --- ⚙️ الدوال المساعدة الآمنة ---
+# --- ⚙️ الدوال السريرية المساعدة ---
 async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Markdown"):
     try:
         await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
@@ -163,7 +192,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
         
-        print(f"📥 استلمنا رسالة من المستخدم {user_id}: {user_text[:50]}")
+        print(f"📥 [معالجة]: استلمنا رسالة من {user_id}: {user_text[:50]}")
         
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
@@ -202,11 +231,9 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         epi_alerts = predict_epidemiology_and_risks(str(user_text))
         drug_alerts = check_drug_interactions(str(user_text))
         
-        # استدعاء الذكاء الاصطناعي
         raw_output = await consult_advanced_medical_system(content_payload, is_media, history_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
-        # استخراج النص بأمان وبدون التسبب في صمت البوت
         rep = raw_output
         if "---START_REP---" in raw_output:
             try:
@@ -218,10 +245,8 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rights_footer = f"\n\n👑 *[ميثاق الملكية وحقوق البرمجة]:* تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
         rep_with_rights = rep + rights_footer
         
-        if drug_alerts: 
-            await update.message.reply_text(drug_alerts, parse_mode="Markdown")
-        if epi_alerts: 
-            await update.message.reply_text(epi_alerts, parse_mode="Markdown")
+        if drug_alerts: await update.message.reply_text(drug_alerts, parse_mode="Markdown")
+        if epi_alerts: await update.message.reply_text(epi_alerts, parse_mode="Markdown")
         
         chunks = split_medical_text(rep_with_rights)
         await safe_edit_or_send(processing_message, chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None, parse_mode="Markdown")
@@ -252,22 +277,11 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# --- 🚀 إقلاع المنظومة الآمن وتحضير الـ Webhook وعلاقته بالـ Loop ---
+# ربط دالة التحكم بالتطبيق لتعمل تلقائياً فور سحب البيانات من الطابور
 tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
-async def init_webhook():
-    await tg_application.initialize()
-    await tg_application.start()
-    await tg_application.bot.set_webhook(
-        url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}",
-        drop_pending_updates=True
-    )
-    print("🚀 تم تفعيل الـ Webhook وربطه بنجاح مع السيرفر السحابي...")
-
-global_loop.run_until_complete(init_webhook())
-
-# --- 🌐 تشغيل خادم Flask الفعلي ---
+# --- 🚀 تشغيل الخادم السحابي المحلي الاحتياطي ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"📡 خادم Flask ينطلق الآن بنجاح على المنفذ: {port}")
+    print(f"📡 خادم Flask ينطلق يدويًا على المنفذ: {port}")
     server.run(host="0.0.0.0", port=port)
