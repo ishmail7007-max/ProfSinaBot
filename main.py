@@ -16,7 +16,7 @@ except RuntimeError:
 
 # --- 🔗 مفاتيح الربط السحابي الحية ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInZiZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 AI_API_KEY = "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"
@@ -36,32 +36,24 @@ tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 # --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
 server = Flask('')
 
-# علم للتأكد من أن البوت تم تهيئته وتشغيله مرة واحدة فقط في الخلفية
-is_bot_started = False
+is_bot_initialized = False
 
-async def start_bot_background():
-    """ دالة تشغيل البوت وربطه بالويب هوك في الخلفية ليعمل مع Gunicorn """
-    global is_bot_started
-    if not is_bot_started:
+async def init_bot_components():
+    """ تهيئة البوت بسلام وإعداد الذاكرة والربط دون تشغيل متكرر للمحرك """
+    global is_bot_initialized
+    if not is_bot_initialized:
         await tg_application.initialize()
-        await tg_application.start()
-        # بدء قراءة الطابور ومعالجة الرسائل القادمة فوراً خلف الكواليس
-        await tg_application.updater.start_webhook(
-            listen="0.0.0.0",
-            port=0, # وهمي لأن المستقبل الفعلي هو Flask
-            webhook_url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}"
-        )
-        is_bot_started = True
-        print("🚀 [تأكيد حركي]: تم إقلاع محرك تليجرام الداخلي وسحب الرسائل من الطابور بنجاح!")
+        is_bot_initialized = True
+        print("🚀 [تأكيد حركي]: تم تهيئة البوت الطبي والربط السحابي جاهز لمعالجة الرسائل!")
 
 @server.before_request
-def ensure_bot_is_running():
-    """ يتم استدعاء هذه الدالة تلقائياً عند أول طلب ويب للسيرفر لتشغيل محرك البوت """
-    if not is_bot_started:
+def ensure_bot_is_ready():
+    """ التأكد من اكتمال التهيئة مع أول إشارة ويب تصل إلى السيرفر """
+    if not is_bot_initialized:
         try:
-            global_loop.run_until_complete(start_bot_background())
+            global_loop.run_until_complete(init_bot_components())
         except Exception as e:
-            print(f"⚠️ خطأ أثناء محاولة تشغيل البوت في الخلفية: {e}")
+            print(f"⚠️ تنبيه التهيئة: {e}")
 
 @server.route('/')
 def home():
@@ -72,12 +64,15 @@ def telegram_webhook():
     if request.method == "POST":
         try:
             update_json = request.get_json(force=True)
+            
+            # تحويل البيانات القادمة إلى كائن تحديث تابع لتليجرام
             update_obj = Update.de_json(update_json, tg_application.bot)
             
-            # دفع التحديث للطابور ليقوم المحرك الخلفي بمعالجته فوراً
-            global_loop.call_soon_threadsafe(tg_application.update_queue.put_nowait, update_obj)
+            # معالجة التحديث فوراً وبشكل متزامن وبأعلى سرعة ممكنة دون طوابير انتظار معقدة
+            global_loop.run_until_complete(tg_application.process_update(update_obj))
+            
         except Exception as e:
-            print(f"❌ Webhook Data Error: {e}")
+            print(f"❌ Webhook Processing Error: {e}")
     return "OK", 200
 
 # --- ⚙️ الدوال السريرية المساعدة ---
@@ -192,7 +187,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
         
-        print(f"📥 [معالجة]: استلمنا رسالة من {user_id}: {user_text[:50]}")
+        print(f"📥 [تليجرام]: جاري معالجة طلب العميل {user_id}")
         
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
@@ -255,8 +250,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         print(f"❌ Critical Error in handle_main_flow: {e}")
-        try:
-            await update.message.reply_text(f"❌ حدث خطأ داخلي أثناء المعالجة: {str(e)}")
+        try: await update.message.reply_text(f"❌ حدث خطأ داخلي أثناء المعالجة: {str(e)}")
         except: pass
 
 async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
@@ -277,11 +271,22 @@ async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYP
     if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
         await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
-# ربط دالة التحكم بالتطبيق لتعمل تلقائياً فور سحب البيانات من الطابور
+# ربط دالة التحكم الأساسية بالتطبيق لمعالجة البيانات الواردة مباشرة ومباشرة
 tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
-# --- 🚀 تشغيل الخادم السحابي المحلي الاحتياطي ---
+# لإخبار خادم تليجرام أن الرابط السحابي لـ Render هو المعتمد لاستقبال الرسائل دائمًا
+async def set_webhook_url():
+    async with tg_application.bot:
+        await tg_application.bot.set_webhook(url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}")
+        print("🔗 [تأكيد]: تم إعادة ضبط رابط الـ Webhook مع خادم تليجرام بنجاح!")
+
+try:
+    global_loop.run_until_complete(set_webhook_url())
+except Exception as e:
+    print(f"⚠️ تفادي خطأ تهيئة الـ Webhook الخارجي: {e}")
+
+# --- 🌐 تشغيل خادم Flask الفعلي الحاضن للتطبيق السحابي ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"📡 خادم Flask ينطلق يدويًا على المنفذ: {port}")
+    print(f"📡 خادم Flask ينطلق بنجاح على المنفذ: {port}")
     server.run(host="0.0.0.0", port=port)
