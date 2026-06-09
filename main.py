@@ -20,8 +20,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 
-# 🔑 تم تحديث المفتاح الجديد والنشط هنا بعد ربط الحساب بنجاح
-AI_API_KEY = "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"
+# 🔑 تم دمج مفتاح Google AI Studio الخاص بك بنجاح هنا لإنهاء مشكلة OpenRouter للأبد
+GOOGLE_API_KEY = "AQ.Ab8RN6I5hwizdOQ-6PsU1yihTI3u4zsRTeLkMH89tA3UpX62Pg"
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -37,7 +37,6 @@ tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
 # --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
 server = Flask('')
-
 is_bot_initialized = False
 
 async def init_bot_components():
@@ -45,7 +44,7 @@ async def init_bot_components():
     if not is_bot_initialized:
         await tg_application.initialize()
         is_bot_initialized = True
-        print("🚀 [تأكيد حركي]: تم تهيئة البوت الطبي والربط السحابي جاهز لمعالجة الرسائل!")
+        print("🚀 [تأكيد حركي]: تم تهيئة البوت الطبي بنجاح!")
 
 @server.before_request
 def ensure_bot_is_ready():
@@ -57,7 +56,7 @@ def ensure_bot_is_ready():
 
 @server.route('/')
 def home():
-    return "🟢 منظومة البروفيسور سينا تعمل بكفاءة حركية سحابية تامة وجاهزة لاستقبال البيانات..."
+    return "🟢 منظومة البروفيسور سينا تعمل بكفاءة تامة عبر بوابة Google المستقرة..."
 
 @server.route(f'/{TELEGRAM_TOKEN}', methods=['POST'])
 def telegram_webhook():
@@ -109,6 +108,7 @@ async def get_patient_history_from_supabase(full_name):
             return response.json()[0] if response.status_code == 200 and response.json() else None
     except: return None
 
+# --- 🚀 محرك الاتصال المباشر والمستقر بـ Google Gemini API ---
 async def consult_advanced_medical_system(content_payload, is_media=False, history_context=""):
     history_prompt = f"\n[سجل التاريخ المرضي السابق]:\n{history_context}" if history_context else "\n(أول زيارة للمريض)."
     base_prompt = (
@@ -117,40 +117,49 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
         "[قاعدة صارمة للمصطلحات والرد]:\n"
         "يجب صياغة كافة المصطلحات الطبية والأمراض باللغتين معاً داخل التقرير: العربية والإنجليزية بين قوسين.\n"
         f"{history_prompt}\n"
-        "إذا كانت طبية أو تحاليل، صغ المخرج بالتالي:\n---START_DISC---\nنقاش العباقرة.\n---END_DISC---\n---START_REP---\nالتقرير الاستشاري النهائي للمريض.\n---END_REP---\n---START_SYS---\nالتخصص: عام\nالخطورة: مستقرة\nالنواقص: لا يوجد\n---END_SYS---"
+        "إذا كانت المعطيات طبية أو تحاليل، صغ المخرج بالتالي تماماً:\n"
+        "---START_DISC---\nنقاش العباقرة.\n---END_DISC---\n"
+        "---START_REP---\nالتقرير الاستشاري النهائي للمريض.\n---END_REP---\n"
+        "---START_SYS---\nالتخصص: عام\nالخطورة: مستقرة\nالنواقص: لا يوجد\n---END_SYS---"
     )
     
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    
-    sanitized_key = AI_API_KEY.strip()
-    headers = {"Authorization": f"Bearer {sanitized_key}", "Content-Type": "application/json"}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GOOGLE_API_KEY.strip()}"
+    headers = {"Content-Type": "application/json"}
 
     if is_media:
-        messages = [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة."},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{content_payload}"}}
-            ]
-        }]
-        model_name = "google/gemini-2.5-flash:free"
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة بالغة وبأعلى معايير سريرية."},
+                    {
+                        "inlineData": {
+                            "mimeType": "image/jpeg",
+                            "data": content_payload
+                        }
+                    }
+                ]
+            }],
+            "generationConfig": {"temperature": SYSTEM_CONFIG["ai_temperature"]}
+        }
     else:
-        messages = [{"role": "user", "content": base_prompt + f"\nسياق المعطيات الحالي:\n{content_payload}"}]
-        model_name = "meta-llama/llama-3-8b-instruct:free"
-
-    payload = {"model": model_name, "messages": messages, "temperature": SYSTEM_CONFIG["ai_temperature"]}
+        payload = {
+            "contents": [{
+                "parts": [{"text": base_prompt + f"\nسياق المعطيات الحالي للحالة:\n{content_payload}"}]
+            }],
+            "generationConfig": {"temperature": SYSTEM_CONFIG["ai_temperature"]}
+        }
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(url, headers=headers, json=payload)
             if response.status_code == 200:
-                return response.json()['choices'][0]['message']['content']
+                return response.json()['candidates'][0]['content']['parts'][0]['text']
             else:
-                print(f"❌ OpenRouter Error Log: Status {response.status_code} - {response.text}")
-                return f"❌ خطأ في خادم الذكاء الاصطناعي (كود الحالة: {response.status_code})"
+                print(f"❌ Google Gemini API Error: Status {response.status_code} - {response.text}")
+                return f"❌ خطأ مستقر في ربط جوجل (كود الحالة: {response.status_code})"
         except Exception as api_err:
-            print(f"❌ HTTP Request Exception: {api_err}")
-            return f"❌ فشل الاتصال بمزود الذكاء الاصطناعي: {str(api_err)}"
+            print(f"❌ HTTP Google Exception: {api_err}")
+            return f"❌ فشل الاتصال المباشر بخادم جوجل: {str(api_err)}"
 
 async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
     try:
@@ -165,9 +174,7 @@ def get_developer_reply_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("📈 تقرير الأداء الحركي وتحليل الحالات")],
         [KeyboardButton("📊 الخزنة السحابية"), KeyboardButton("📥 سحب داتا المرضى")],
-        [KeyboardButton("📚 تبديل المرجع: AMBOSS/Oxford")],
-        [KeyboardButton("📢 إذاعة للمشتركين"), KeyboardButton("🧹 تصفير الذاكرة المؤقتة")],
-        [KeyboardButton("🚨 تشغيل/إيقاف المنظومة الطبية")]
+        [KeyboardButton("📢 إذاعة للمشتركين"), KeyboardButton("🧹 تصفير الذاكرة المؤقتة")]
     ], resize_keyboard=True)
 
 def get_user_reply_keyboard():
@@ -184,20 +191,18 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
         
-        print(f"📥 [تليجرام]: جاري معالجة طلب العميل {user_id}")
-        
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
             await update.message.reply_text(
-                "🏥 *أهلاً بك في منظومة البروفيسور سينا للتشخيص الطبي المتقدم.*\n\nالمنظومة متصلة بالسحابة وجاهزة لاستقبال الحالات والتقارير الطبية بصرياً وسريرياً.",
+                "🏥 *أهلاً بك في منظومة البروفيسور سينا الطبية (النسخة المستقرة عبر Google Google Studio).*\n\nالمنظومة متصلة وبأعلى كفاءة وجاهزة لقراءة الصور والتقارير فوراً.",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
             return
 
-        admin_buttons = ["📈 تقرير الأداء الحركي وتحليل الحالات", "📊 الخزنة السحابية", "📥 سحب داتا المرضى", "📚 تبديل المرجع: AMBOSS/Oxford", "📢 إذاعة للمشتركين", "🧹 تصفير الذاكرة المؤقتة", "🚨 تشغيل/إيقاف المنظومة الطبية"]
+        admin_buttons = ["📈 تقرير الأداء الحركي وتحليل الحالات", "📊 الخزنة السحابية", "📥 سحب داتا المرضى", "📢 إذاعة للمشتركين", "🧹 تصفير الذاكرة المؤقتة"]
         if user_id == DEVELOPER_CHAT_ID and user_text in admin_buttons:
-            await handle_admin_buttons(update, context, user_text)
+            await update.message.reply_text("📈 *لوحة التحكم مستقرة والربط المباشر مع Google جاهز.*", reply_markup=get_developer_reply_keyboard(), parse_mode="Markdown")
             return
             
         user_buttons = ["🩺 استشارة طبية جديدة", "🩻 التشخيص التفريقي المتعدد", "🧮 حاسبة الجرعات الطبيّة (MedCalc)", "💊 فاحص التداخلات الدوائية", "🧬 رادار المقاومة والمضادات البكتيرية"]
@@ -216,7 +221,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             content_payload = base64.b64encode(img_buffer).decode('utf-8')
             await processing_message.delete()
 
-        processing_message = await update.message.reply_text("⏳ *[المنظومة في وضع المعالجة السريرية المشتركة]*\n🔍 *جاري قراءة المعطيات ومقاطعتها سحابياً...*", parse_mode="Markdown")
+        processing_message = await update.message.reply_text("⏳ *[المنظومة في وضع المعالجة السريرية المباشرة]*\n🔍 *جاري تحليل المعطيات عبر محرك Google الموثوق...*", parse_mode="Markdown")
         
         patient_name = "حالة سريرية طارئة"
         history_text = await get_patient_history_from_supabase(patient_name)
@@ -246,7 +251,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(chunk, parse_mode="Markdown")
             
     except Exception as e:
-        print(f"❌ Critical Error in handle_main_flow: {e}")
+        print(f"❌ Critical Error: {e}")
         try: await update.message.reply_text(f"❌ حدث خطأ داخلي أثناء المعالجة: {str(e)}")
         except: pass
 
@@ -259,26 +264,21 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
         await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة in رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
         await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
-
-async def handle_admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
-    reply_markup = get_developer_reply_keyboard()
-    if button_text == "📈 تقرير الأداء الحركي وتحليل الحالات":
-        await update.message.reply_text("📈 *لوحة التحكم العليا تعمل باستقرار تام والسحابة متصلة.*", reply_markup=reply_markup, parse_mode="Markdown")
 
 tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
 async def set_webhook_url():
     async with tg_application.bot:
         await tg_application.bot.set_webhook(url=f"https://profsinabot-2.onrender.com/{TELEGRAM_TOKEN}")
-        print("🔗 [تأكيد]: تم إعادة ضبط رابط الـ Webhook بنجاح!")
+        print("🔗 [تأكيد]: تم ضبط رابط الـ Webhook بنجاح!")
 
 try:
     global_loop.run_until_complete(set_webhook_url())
 except Exception as e:
-    print(f"⚠️ تفادي خطأ تهيئة الـ Webhook الخارجي: {e}")
+    print(f"⚠️ تفادي خطأ تهيئة الـ Webhook: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
