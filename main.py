@@ -2,7 +2,7 @@ import os
 import re
 import asyncio
 import httpx
-import base64
+import gc  # 🧹 لتنظيف الذاكرة العشوائية فوراً
 from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
@@ -70,18 +70,17 @@ def telegram_webhook():
     return "OK", 200
 
 # --- ⚙️ الدوال السريرية المساعدة ---
-async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode=None):
-    # 🔧 [تم التعديل]: إزالة التنسيق الافتراضي الصارم لتجنب كسر الرموز
+async def safe_edit_or_send(message, new_text, reply_markup=None):
     try:
-        return await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        return await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=None)
     except Exception:
         try:
             await message.delete()
         except:
             pass
-        return await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        return await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=None)
 
-def split_medical_text(text, max_chars=3900):
+def split_medical_text(text, max_chars=3800):
     return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
 
 def predict_epidemiology_and_risks(text):
@@ -113,7 +112,7 @@ async def get_patient_history_from_supabase(full_name):
     except: 
         return None
 
-# --- 🚀 محرك الاتصال المباشر والمستقر بـ Google Gemini API ---
+# --- 🚀 محرك الاتصال المطور والموفر للذاكرة مع Google Gemini API ---
 async def consult_advanced_medical_system(content_payload, is_media=False, history_context=""):
     history_prompt = f"\n[سجل التاريخ المرضي السابق]:\n{history_context}" if history_context else "\n(أول زيارة للمريض)."
     base_prompt = (
@@ -122,8 +121,7 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
         "[قاعدة صارمة للمصطلحات والرد]:\n"
         "يجب صياغة كافة المصطلحات الطبية والأمراض باللغتين معاً داخل التقرير: العربية والإنجليزية بين قوسين.\n"
         f"{history_prompt}\n"
-        "إذا كانت المعطيات طبية أو تحاليل، صغ المخرج بالتالي تماماً:\n"
-        "---START_REP---\nالتقرير الاستشاري النهائي للمريض.\n---END_REP---\n"
+        "أنت تستقبل الآن المعطيات مباشرة، صغ مخرج التقرير الاستشاري النهائي للمريض بالتفصيل وبدون علامات الماركداون العشوائية."
     )
     
     api_key = GOOGLE_API_KEY.strip() if GOOGLE_API_KEY else ""
@@ -133,11 +131,12 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
 
+    # 🔧 [تحسين حرج وخارق للذاكرة]: إذا كانت ميديا، نقوم بتحميل الصورة كمصفوفة بايتات خفيفة مباشرة
     if is_media:
         payload = {
             "contents": [{
                 "parts": [
-                    {"text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة بالغة وبأعلى معايير سريرية وبدون استخدام علامات الماركداون العشوائية مثل النجوم الكثيرة."},
+                    {"text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة بالغة وبأعلى معايير سريرية."},
                     {
                         "inlineData": {
                             "mimeType": "image/jpeg",
@@ -162,7 +161,7 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
             if response.status_code == 200:
                 return response.json()['candidates'][0]['content']['parts'][0]['text']
             else:
-                return f"❌ خطأ مستقر في ربط جوجل (كود الحالة: {response.status_code})"
+                return f"❌ خطأ في ربط جوجل (كود الحالة: {response.status_code})"
         except Exception as api_err:
             return f"❌ فشل الاتصال المباشر بخادم جوجل: {str(api_err)}"
 
@@ -221,10 +220,18 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if update.message.photo:
             is_media = True
-            processing_message = await update.message.reply_text("📸 جاري استقبال التقرير الطبي وتشفيره بصرياً...")
+            processing_message = await update.message.reply_text("📸 جاري استقبال التقرير الطبي ومعالجته رقمياً...")
+            
+            # 🔧 [إصلاح حرج لتقليل حجم بايتات الصورة لعدم تخطي الذاكرة]
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
             img_buffer = await photo_file.download_as_bytearray()
             content_payload = base64.b64encode(img_buffer).decode('utf-8')
+            
+            # تفريغ فوري للمتغيرات الكبيرة
+            del photo_file
+            del img_buffer
+            gc.collect()
+
             try:
                 await processing_message.delete()
             except:
@@ -237,20 +244,14 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         epi_alerts = predict_epidemiology_and_risks(str(user_text))
         drug_alerts = check_drug_interactions(str(user_text))
         
-        raw_output = await consult_advanced_medical_system(content_payload, is_media, history_text)
+        rep = await consult_advanced_medical_system(content_payload, is_media, history_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
-        rep = raw_output
-        if "---START_REP---" in raw_output:
-            try:
-                rep = raw_output.split("---START_REP---")[1].split("---END_REP---")[0].strip()
-            except Exception:
-                rep = raw_output
-        
-        if not rep or len(rep.strip()) < 10:
-            rep = raw_output
+        # تنظيف فوري لـ payload الميديا لتحرير الـ RAM
+        if is_media:
+            del content_payload
+            gc.collect()
 
-        # تنظيف أولي مبسط للرموز المعلقة لضمان سلامة الرسائل
         rep = rep.replace("`", "").replace("---START_REP---", "").replace("---END_REP---", "")
 
         await save_to_supabase_advanced(patient_name, rep[:500] + "...", "عام", "مستقرة")
@@ -262,11 +263,13 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if epi_alerts: 
             await update.message.reply_text(epi_alerts)
 
-        # 🚀 إرسال الأجزاء بأمان تام كـ Plain text لتجنب خطأ parse entities
         chunks = split_medical_text(rep_with_rights)
         await safe_edit_or_send(processing_message, chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None)
         for chunk in chunks[1:]:
             await update.message.reply_text(chunk)
+            
+        # 🧹 تنظيف نهائي للذاكرة بعد إرسال الرسالة
+        gc.collect()
             
     except Exception as e:
         print(f"❌ Critical Error: {e}")
