@@ -20,7 +20,7 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 
-# 🔑 جلب مفتاح Google AI Studio بأمان مع قيمة احتياطية لتفادي الأخطاء
+# 🔑 جلب مفتاح Google AI Studio بأمان
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 DEVELOPER_CHAT_ID = 1550103852 
@@ -70,7 +70,8 @@ def telegram_webhook():
     return "OK", 200
 
 # --- ⚙️ الدوال السريرية المساعدة ---
-async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Markdown"):
+async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode=None):
+    # 🔧 [تم التعديل]: إزالة التنسيق الافتراضي الصارم لتجنب كسر الرموز
     try:
         return await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
     except Exception:
@@ -80,24 +81,24 @@ async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Ma
             pass
         return await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
 
-def split_medical_text(text, max_chars=4000):
+def split_medical_text(text, max_chars=3900):
     return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
 
 def predict_epidemiology_and_risks(text):
     alerts = ""
     if re.search(r'(حمى|حرارة|fever)', text.lower()):
-        alerts += "🌍 *[إنذار وبائي موجه - رادار WHO]:* تم رصد أعراض حمى حادة؛ يجب استبعاد احتمالية *حمى الضنك* أو *الملاريا* فوراً.\n\n"
+        alerts += "🌍 [إنذار وبائي موجه - رادار WHO]: تم رصد أعراض حمى حادة؛ يجب استبعاد احتمالية حمى الضنك أو الملاريا فوراً.\n\n"
     if re.search(r'(إسهال|استفراغ|diarrhea)', text.lower()):
-        alerts += "🌍 *[رادار الأوبئة المائي المتقدم]:* رصد إسهال مائي حاد؛ يرجى فحص الجفاف المخبري واستبعاد بؤر *الكوليرا* فوراً.\n\n"
+        alerts += "🌍 [رادار الأوبئة المائي المتقدم]: رصد إسهال مائي حاد؛ يرجى فحص الجفاف المخبري واستبعاد بؤر الكوليرا فوراً.\n\n"
     return alerts
 
 def check_drug_interactions(text):
     interaction_alerts = ""
     text_lower = text.lower()
     if all(re.search(k, text_lower) for k in [r"(acei|enalapril)", r"(spironolactone|سبيرونولاكتون)"]):
-        interaction_alerts += "⚠️ *🚨 [تداخل دوائي أسود خطير]:* خطر فرط بوتاسيوم الدم الحاد الحرج (Severe Hyperkalemia).\n\n"
+        interaction_alerts += "⚠️ 🚨 [تداخل دوائي أسود خطير]: خطر فرط بوتاسيوم الدم الحاد الحرج (Severe Hyperkalemia).\n\n"
     if all(re.search(k, text_lower) for k in [r"(sildenafil|فياجرا)", r"(nitrate|نيترات)"]):
-        interaction_alerts += "⚠️ *🚨 [تداخل دوائي أسود خطير]:* هبوط حاد وصدمة وعائية مفاجئة قاتلة.\n\n"
+        interaction_alerts += "⚠️ 🚨 [تداخل دوائي أسود خطير]: هبوط حاد وصدمة وعائية مفاجئة قاتلة.\n\n"
     return interaction_alerts
 
 async def get_patient_history_from_supabase(full_name):
@@ -122,14 +123,12 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
         "يجب صياغة كافة المصطلحات الطبية والأمراض باللغتين معاً داخل التقرير: العربية والإنجليزية بين قوسين.\n"
         f"{history_prompt}\n"
         "إذا كانت المعطيات طبية أو تحاليل، صغ المخرج بالتالي تماماً:\n"
-        "---START_DISC---\nنقاش العباقرة.\n---END_DISC---\n"
         "---START_REP---\nالتقرير الاستشاري النهائي للمريض.\n---END_REP---\n"
-        "---START_SYS---\nالتخصص: عام\nالخطورة: مستقرة\nالنواقص: لا يوجد\n---END_SYS---"
     )
     
     api_key = GOOGLE_API_KEY.strip() if GOOGLE_API_KEY else ""
     if not api_key:
-        return "❌ خطأ: لم يتم ضبط مفتاح GOOGLE_API_KEY في متغيرات البيئة (Environment Variables)."
+        return "❌ خطأ: لم يتم ضبط مفتاح GOOGLE_API_KEY في متغيرات البيئة."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
@@ -138,7 +137,7 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
         payload = {
             "contents": [{
                 "parts": [
-                    {"text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة بالغة وبأعلى معايير سريرية."},
+                    {"text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة بالغة وبأعلى معايير سريرية وبدون استخدام علامات الماركداون العشوائية مثل النجوم الكثيرة."},
                     {
                         "inlineData": {
                             "mimeType": "image/jpeg",
@@ -163,10 +162,8 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
             if response.status_code == 200:
                 return response.json()['candidates'][0]['content']['parts'][0]['text']
             else:
-                print(f"❌ Google Gemini API Error: Status {response.status_code} - {response.text}")
                 return f"❌ خطأ مستقر في ربط جوجل (كود الحالة: {response.status_code})"
         except Exception as api_err:
-            print(f"❌ HTTP Google Exception: {api_err}")
             return f"❌ فشل الاتصال المباشر بخادم جوجل: {str(api_err)}"
 
 async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
@@ -204,15 +201,14 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
             await update.message.reply_text(
-                "🏥 *أهلاً بك في منظومة البروفيسور سينا الطبية (النسخة المستقرة عبر Google Studio).*\n\nالمنظومة متصلة وبأعلى كفاءة وجاهزة لقراءة الصور والتقارير فوراً.",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
+                "🏥 أهلاً بك في منظومة البروفيسور سينا الطبية (النسخة المستقرة عبر Google Studio).\n\nالمنظومة متصلة وبأعلى كفاءة وجاهزة لقراءة الصور والتقارير فوراً.",
+                reply_markup=reply_markup
             )
             return
 
         admin_buttons = ["📈 تقرير الأداء الحركي وتحليل الحالات", "📊 الخزنة السحابية", "📥 سحب داتا المرضى", "📢 إذاعة للمشتركين", "🧹 تصفير الذاكرة المؤقتة"]
         if user_id == DEVELOPER_CHAT_ID and user_text in admin_buttons:
-            await update.message.reply_text("📈 *لوحة التحكم مستقرة والربط المباشر مع Google جاهز.*", reply_markup=get_developer_reply_keyboard(), parse_mode="Markdown")
+            await update.message.reply_text("📈 لوحة التحكم مستقرة والربط المباشر مع Google جاهز.", reply_markup=get_developer_reply_keyboard())
             return
             
         user_buttons = ["🩺 استشارة طبية جديدة", "🩻 التشخيص التفريقي المتعدد", "🧮 حاسبة الجرعات الطبيّة (MedCalc)", "💊 فاحص التداخلات الدوائية", "🧬 رادار المقاومة والمضادات البكتيرية"]
@@ -225,7 +221,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if update.message.photo:
             is_media = True
-            processing_message = await update.message.reply_text("📸 *جاري استقبال التقرير الطبي وتشفيره بصرياً...*")
+            processing_message = await update.message.reply_text("📸 جاري استقبال التقرير الطبي وتشفيره بصرياً...")
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
             img_buffer = await photo_file.download_as_bytearray()
             content_payload = base64.b64encode(img_buffer).decode('utf-8')
@@ -234,7 +230,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
 
-        processing_message = await update.message.reply_text("⏳ *[المنظومة في وضع المعالجة السريرية المباشرة]*\n🔍 *جاري تحليل المعطيات عبر محرك Google الموثوق...*", parse_mode="Markdown")
+        processing_message = await update.message.reply_text("⏳ [المنظومة في وضع المعالجة السريرية المباشرة]\n🔍 جاري تحليل المعطيات عبر محرك Google الموثوق...")
         
         patient_name = "حالة سريرية طارئة"
         history_text = await get_patient_history_from_supabase(patient_name)
@@ -244,7 +240,6 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         raw_output = await consult_advanced_medical_system(content_payload, is_media, history_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
-        # 🔧 [إصلاح حرج لقص النص المالي الصارم]: تأمين قراءة التقرير حتى لو اختلف التنسيق
         rep = raw_output
         if "---START_REP---" in raw_output:
             try:
@@ -252,23 +247,26 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 rep = raw_output
         
-        # إذا تبين أن النص المستخلص فارغ لسبب ما، نعتمد على النص الكامل لعدم إرسال رسائل فارغة
-        if not rep or rep.strip() == "التقرير الاستشاري النهائي للمريض.":
+        if not rep or len(rep.strip()) < 10:
             rep = raw_output
 
+        # تنظيف أولي مبسط للرموز المعلقة لضمان سلامة الرسائل
+        rep = rep.replace("`", "").replace("---START_REP---", "").replace("---END_REP---", "")
+
         await save_to_supabase_advanced(patient_name, rep[:500] + "...", "عام", "مستقرة")
-        rights_footer = f"\n\n👑 *[ميثاق الملكية وحقوق البرمجة]:* تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
+        rights_footer = f"\n\n👑 [ميثاق الملكية وحقوق البرمجة]: تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
         rep_with_rights = rep + rights_footer
         
         if drug_alerts: 
-            await update.message.reply_text(drug_alerts, parse_mode="Markdown")
+            await update.message.reply_text(drug_alerts)
         if epi_alerts: 
-            await update.message.reply_text(epi_alerts, parse_mode="Markdown")
+            await update.message.reply_text(epi_alerts)
 
+        # 🚀 إرسال الأجزاء بأمان تام كـ Plain text لتجنب خطأ parse entities
         chunks = split_medical_text(rep_with_rights)
-        await safe_edit_or_send(processing_message, chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None, parse_mode="Markdown")
+        await safe_edit_or_send(processing_message, chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None)
         for chunk in chunks[1:]:
-            await update.message.reply_text(chunk, parse_mode="Markdown")
+            await update.message.reply_text(chunk)
             
     except Exception as e:
         print(f"❌ Critical Error: {e}")
@@ -280,15 +278,15 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
     reply_markup = get_user_reply_keyboard()
     if button_text == "🩺 استشارة طبية جديدة":
-        await update.message.reply_text("🩺 *غرف الفرز جاهزة.* أرسل الأعراض السريرية أو صورة التحليل والمستندات الآن.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("🩺 غرف الفرز جاهزة. أرسل الأعراض السريرية أو صورة التحليل والمستندات الآن.", reply_markup=reply_markup)
     elif button_text == "🩻 التشخيص التفريقي المتعدد":
-        await update.message.reply_text("🩻 *اكتب العرض الرئيسي للمريض فقط* (مثل: ألم صدر حاد) لاستعراض مصفوفة الاحتمالات الطبية.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("🩻 اكتب العرض الرئيسي للمريض فقط (مثل: ألم صدر حاد) لاستعراض مصفوفة الاحتمالات الطبية.", reply_markup=reply_markup)
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
-        await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("🧮 اكتب وزن الطفل واسم المضاد لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup)
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة in رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 اكتب أسماء الأدوية مجتمعة في رسالة واحدة لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup)
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
-        await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("🧬 اكتب موضع الالتهاب المخبري لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup)
 
 tg_application.add_handler(MessageHandler(filters.ALL, handle_main_flow))
 
