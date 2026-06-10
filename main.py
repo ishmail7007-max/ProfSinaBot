@@ -2,8 +2,8 @@ import os
 import re
 import asyncio
 import httpx
-import base64  # 🔐 تم إضافة الاستيراد المفقود لحل المشكلة تماماً!
-import gc  # 🧹 لتنظيف الذاكرة العشوائية فوراً
+import base64  
+import gc  
 from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
@@ -113,7 +113,7 @@ async def get_patient_history_from_supabase(full_name):
     except: 
         return None
 
-# --- 🚀 محرك الاتصال المطور والموفر للذاكرة مع Google Gemini API ---
+# --- 🚀 محرك الاتصال المطور والمزود بآلية تخطي ضغط خوادم جوجل (503) ---
 async def consult_advanced_medical_system(content_payload, is_media=False, history_context=""):
     history_prompt = f"\n[سجل التاريخ المرضي السابق]:\n{history_context}" if history_context else "\n(أول زيارة للمريض)."
     base_prompt = (
@@ -155,15 +155,25 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
             "generationConfig": {"temperature": SYSTEM_CONFIG["ai_temperature"]}
         }
     
+    # 🔧 [تطوير حرج لقوة الاتصال]: محاولة الاتصال بحد أقصى 3 مرات عند حدوث الخطأ 503 اللحظي
+    max_retries = 3
     async with httpx.AsyncClient(timeout=60.0) as client:
-        try:
-            response = await client.post(url, headers=headers, json=payload)
-            if response.status_code == 200:
-                return response.json()['candidates'][0]['content']['parts'][0]['text']
-            else:
-                return f"❌ خطأ في ربط جوجل (كود الحالة: {response.status_code})"
-        except Exception as api_err:
-            return f"❌ فشل الاتصال المباشر بخادم جوجل: {str(api_err)}"
+        for attempt in range(max_retries):
+            try:
+                response = await client.post(url, headers=headers, json=payload)
+                if response.status_code == 200:
+                    return response.json()['candidates'][0]['content']['parts'][0]['text']
+                elif response.status_code == 503 and attempt < max_retries - 1:
+                    print(f"⚠️ سيرفر جوجل مشغول (503)، جاري إعادة المحاولة خلال ثانيتين... محاولة {attempt + 1}")
+                    await asyncio.sleep(2)
+                    continue
+                else:
+                    return f"❌ خطأ في ربط جوجل (كود الحالة: {response.status_code})"
+            except Exception as api_err:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2)
+                    continue
+                return f"❌ فشل الاتصال المباشر بخادم جوجل: {str(api_err)}"
 
 async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
     try:
