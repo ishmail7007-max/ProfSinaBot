@@ -72,7 +72,7 @@ def telegram_webhook():
 # --- ⚙️ الدوال السريرية المساعدة ---
 async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Markdown"):
     try:
-        await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        return await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
     except Exception:
         try:
             await message.delete()
@@ -229,7 +229,10 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
             img_buffer = await photo_file.download_as_bytearray()
             content_payload = base64.b64encode(img_buffer).decode('utf-8')
-            await processing_message.delete()
+            try:
+                await processing_message.delete()
+            except:
+                pass
 
         processing_message = await update.message.reply_text("⏳ *[المنظومة في وضع المعالجة السريرية المباشرة]*\n🔍 *جاري تحليل المعطيات عبر محرك Google الموثوق...*", parse_mode="Markdown")
         
@@ -241,12 +244,17 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         raw_output = await consult_advanced_medical_system(content_payload, is_media, history_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
+        # 🔧 [إصلاح حرج لقص النص المالي الصارم]: تأمين قراءة التقرير حتى لو اختلف التنسيق
         rep = raw_output
         if "---START_REP---" in raw_output:
             try:
                 rep = raw_output.split("---START_REP---")[1].split("---END_REP---")[0].strip()
             except Exception:
                 rep = raw_output
+        
+        # إذا تبين أن النص المستخلص فارغ لسبب ما، نعتمد على النص الكامل لعدم إرسال رسائل فارغة
+        if not rep or rep.strip() == "التقرير الاستشاري النهائي للمريض.":
+            rep = raw_output
 
         await save_to_supabase_advanced(patient_name, rep[:500] + "...", "عام", "مستقرة")
         rights_footer = f"\n\n👑 *[ميثاق الملكية وحقوق البرمجة]:* تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
@@ -257,7 +265,6 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if epi_alerts: 
             await update.message.reply_text(epi_alerts, parse_mode="Markdown")
 
-        # 🔧 [تم الإصلاح]: إعادة إدخال هذه الأسطر البرمجية لداخل كتلة الـ try والدالة
         chunks = split_medical_text(rep_with_rights)
         await safe_edit_or_send(processing_message, chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None, parse_mode="Markdown")
         for chunk in chunks[1:]:
@@ -279,7 +286,7 @@ async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif button_text == "🧮 حاسبة الجرعات الطبيّة (MedCalc)":
         await update.message.reply_text("🧮 *اكتب وزن الطفل واسم المضاد* لحساب الجرعة السريرية بموجب بروتوكول Oxford.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "💊 فاحص التداخلات الدوائية":
-        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة في رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
+        await update.message.reply_text("💊 *اكتب أسماء الأدوية مجتمعة in رسالة واحدة* لفحص التعارض الصدمي الحاد.", reply_markup=reply_markup, parse_mode="Markdown")
     elif button_text == "🧬 رادار المقاومة والمضادات البكتيرية":
         await update.message.reply_text("🧬 *اكتب موضع الالتهاب المخبري* لتوجيه العلاج التجريبي الذكي ومقاومة البكتيريا.", reply_markup=reply_markup, parse_mode="Markdown")
 
