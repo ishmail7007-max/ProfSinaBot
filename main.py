@@ -20,11 +20,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 
-# 🔑 تم دمج مفتاح Google AI Studio الخاص بك بنجاح هنا لإنهاء مشكلة OpenRouter للأبد
-import os
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-
+# 🔑 جلب مفتاح Google AI Studio بأمان مع قيمة احتياطية لتفادي الأخطاء
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -39,7 +36,7 @@ SYSTEM_CONFIG = {
 tg_application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
 # --- 🌐 خادم الويب والمستقبل السحابي (Webhook) ---
-server = Flask('')
+server = Flask(__name__)
 is_bot_initialized = False
 
 async def init_bot_components():
@@ -77,9 +74,11 @@ async def safe_edit_or_send(message, new_text, reply_markup=None, parse_mode="Ma
     try:
         await message.edit_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
     except Exception:
-        try: await message.delete()
-        except: pass
-        await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
+        try:
+            await message.delete()
+        except:
+            pass
+        return await message.reply_text(new_text, reply_markup=reply_markup, parse_mode=parse_mode)
 
 def split_medical_text(text, max_chars=4000):
     return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
@@ -103,13 +102,15 @@ def check_drug_interactions(text):
 
 async def get_patient_history_from_supabase(full_name):
     try:
-        if not full_name or full_name in ["حالة سريرية", "حالة طارئة"]: return None
+        if not full_name or full_name in ["حالة سريرية", "حالة طارئة"]: 
+            return None
         headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
         url = f"{SUPABASE_URL}/rest/v1/patients?full_name=eq.{full_name}&order=created_at.desc&limit=1"
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)
             return response.json()[0] if response.status_code == 200 and response.json() else None
-    except: return None
+    except: 
+        return None
 
 # --- 🚀 محرك الاتصال المباشر والمستقر بـ Google Gemini API ---
 async def consult_advanced_medical_system(content_payload, is_media=False, history_context=""):
@@ -126,7 +127,11 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
         "---START_SYS---\nالتخصص: عام\nالخطورة: مستقرة\nالنواقص: لا يوجد\n---END_SYS---"
     )
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GOOGLE_API_KEY.strip()}"
+    api_key = GOOGLE_API_KEY.strip() if GOOGLE_API_KEY else ""
+    if not api_key:
+        return "❌ خطأ: لم يتم ضبط مفتاح GOOGLE_API_KEY في متغيرات البيئة (Environment Variables)."
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
 
     if is_media:
@@ -170,7 +175,8 @@ async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
         data = {"full_name": full_name, "diagnosis": diagnosis, "specialty": specialty, "urgency": urgency}
         async with httpx.AsyncClient() as client:
             await client.post(f"{SUPABASE_URL}/rest/v1/patients", headers=headers, json=data)
-    except: pass
+    except: 
+        pass
 
 # --- ⌨️ لوحات المفاتيح والتحكم ---
 def get_developer_reply_keyboard():
@@ -190,14 +196,15 @@ def get_user_reply_keyboard():
 # --- 🚀 المعالجة الأساسية للمستندات والرسائل ---
 async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        if not update.message: return
+        if not update.message: 
+            return
         user_id = update.message.chat_id
         user_text = update.message.text if update.message.text else ""
         
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
             await update.message.reply_text(
-                "🏥 *أهلاً بك في منظومة البروفيسور سينا الطبية (النسخة المستقرة عبر Google Google Studio).*\n\nالمنظومة متصلة وبأعلى كفاءة وجاهزة لقراءة الصور والتقارير فوراً.",
+                "🏥 *أهلاً بك في منظومة البروفيسور سينا الطبية (النسخة المستقرة عبر Google Studio).*\n\nالمنظومة متصلة وبأعلى كفاءة وجاهزة لقراءة الصور والتقارير فوراً.",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
@@ -245,9 +252,12 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rights_footer = f"\n\n👑 *[ميثاق الملكية وحقوق البرمجة]:* تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
         rep_with_rights = rep + rights_footer
         
-        if drug_alerts: await update.message.reply_text(drug_alerts, parse_mode="Markdown")
-        if epi_alerts: await update.message.reply_text(epi_alerts, parse_mode="Markdown")
-        
+        if drug_alerts: 
+            await update.message.reply_text(drug_alerts, parse_mode="Markdown")
+        if epi_alerts: 
+            await update.message.reply_text(epi_alerts, parse_mode="Markdown")
+
+        # 🔧 [تم الإصلاح]: إعادة إدخال هذه الأسطر البرمجية لداخل كتلة الـ try والدالة
         chunks = split_medical_text(rep_with_rights)
         await safe_edit_or_send(processing_message, chunks[0], reply_markup=reply_markup if len(chunks) == 1 else None, parse_mode="Markdown")
         for chunk in chunks[1:]:
@@ -255,8 +265,10 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         print(f"❌ Critical Error: {e}")
-        try: await update.message.reply_text(f"❌ حدث خطأ داخلي أثناء المعالجة: {str(e)}")
-        except: pass
+        try: 
+            await update.message.reply_text(f"❌ حدث خطأ داخلي أثناء المعالجة: {str(e)}")
+        except: 
+            pass
 
 async def handle_user_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE, button_text: str):
     reply_markup = get_user_reply_keyboard()
