@@ -21,7 +21,9 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 
 # 🔑 تم دمج مفتاح Google AI Studio الخاص بك بنجاح هنا لإنهاء مشكلة OpenRouter للأبد
-GOOGLE_API_KEY = "AQ.Ab8RN6LZJcIBBfziP9eYYxZYB0kzx6KhHBtylOwob9JsxzhIwA"
+import os
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
 
 
 DEVELOPER_CHAT_ID = 1550103852 
