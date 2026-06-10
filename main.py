@@ -2,6 +2,7 @@ import os
 import re
 import asyncio
 import httpx
+import base64  # 🔐 تم إضافة الاستيراد المفقود لحل المشكلة تماماً!
 import gc  # 🧹 لتنظيف الذاكرة العشوائية فوراً
 from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
@@ -131,7 +132,6 @@ async def consult_advanced_medical_system(content_payload, is_media=False, histo
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
 
-    # 🔧 [تحسين حرج وخارق للذاكرة]: إذا كانت ميديا، نقوم بتحميل الصورة كمصفوفة بايتات خفيفة مباشرة
     if is_media:
         payload = {
             "contents": [{
@@ -222,12 +222,10 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             is_media = True
             processing_message = await update.message.reply_text("📸 جاري استقبال التقرير الطبي ومعالجته رقمياً...")
             
-            # 🔧 [إصلاح حرج لتقليل حجم بايتات الصورة لعدم تخطي الذاكرة]
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
             img_buffer = await photo_file.download_as_bytearray()
             content_payload = base64.b64encode(img_buffer).decode('utf-8')
             
-            # تفريغ فوري للمتغيرات الكبيرة
             del photo_file
             del img_buffer
             gc.collect()
@@ -247,7 +245,6 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rep = await consult_advanced_medical_system(content_payload, is_media, history_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
-        # تنظيف فوري لـ payload الميديا لتحرير الـ RAM
         if is_media:
             del content_payload
             gc.collect()
@@ -268,7 +265,6 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for chunk in chunks[1:]:
             await update.message.reply_text(chunk)
             
-        # 🧹 تنظيف نهائي للذاكرة بعد إرسال الرسالة
         gc.collect()
             
     except Exception as e:
