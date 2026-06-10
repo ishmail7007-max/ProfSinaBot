@@ -56,7 +56,6 @@ def telegram_webhook():
         try:
             update_json = request.get_json(force=True)
             update_obj = Update.de_json(update_json, tg_application.bot)
-            # معالجة فورية كـ Task منفصل لمنع تعليق خادم الويب نهائياً
             global_loop.create_task(tg_application.process_update(update_obj))
         except Exception as e:
             print(f"❌ Webhook Error: {e}")
@@ -106,15 +105,6 @@ async def consult_medical_engine(img_bytes=None, text_context=""):
         return response.text
     except Exception as e:
         return f"❌ خطأ اتصال بمحرك التحليل الطبي: {str(e)}"
-
-async def save_to_supabase_advanced(full_name, diagnosis):
-    try:
-        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"}
-        data = {"full_name": full_name, "diagnosis": diagnosis, "specialty": "عام", "urgency": "مستقرة"}
-        async with httpx.AsyncClient() as client:
-            await client.post(f"{SUPABASE_URL}/rest/v1/patients", headers=headers, json=data)
-    except: 
-        pass
 
 # --- ⌨️ لوحات تحكم البوت ---
 def get_developer_reply_keyboard():
@@ -172,18 +162,14 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         epi_alerts = predict_epidemiology_and_risks(str(user_text))
         drug_alerts = check_drug_interactions(str(user_text))
         
-        # استدعاء دالة التحليل
         rep = await consult_medical_engine(img_bytes=img_bytes, text_context=user_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
-        # تفريغ فوري وحاسم للذاكرة العشوائية لتفادي الانهيار
         if img_bytes:
             del img_bytes
             gc.collect()
 
         rep = rep.replace("`", "")
-        await save_to_supabase_advanced("حالة سريرية طارئة", rep[:500] + "...")
-        
         final_report = rep + f"\n\n👑 [ميثاق الملكية وحقوق البرمجة]: تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
         
         if drug_alerts: 
