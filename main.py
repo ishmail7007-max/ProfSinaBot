@@ -1,12 +1,12 @@
 import os
 import re
 import asyncio
-import httpx
 import base64  
 import gc  
 from flask import Flask, request
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+import google.generativeai as genai  # 🧠 استخدام المكتبة الرسمية المباشرة والأسرع لجوجل
 
 # --- ⚙️ إعداد بيئة الـ Event Loop بأمان للسيرفر ---
 try:
@@ -18,11 +18,12 @@ except RuntimeError:
 # --- 🔗 مفاتيح الربط السحابي الحية ---
 SUPABASE_URL = "https://gyxlgwnuninrubpuakoc.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5xGxnd251bmlucnVicHVha29jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTY2NDYsImV4cCI6MjA5NjQ5MjY0Nn0.ZXLzWLJzCKCwg38--DfCnqrd1DYu3FgTvtuOSyDCSGo"
-
 TELEGRAM_TOKEN = "8904101091:AAEvqTAMalxj0sXLdr9mJGIQRU1oWxTNquw"
 
-# 🔑 جلب مفتاح Google AI Studio بأمان
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+# 🔑 تفعيل إعدادات Google AI Studio الرسمية
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "").strip()
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
 
 DEVELOPER_CHAT_ID = 1550103852 
 DEVELOPER_USERNAME = "@I77Cl" 
@@ -65,7 +66,8 @@ def telegram_webhook():
         try:
             update_json = request.get_json(force=True)
             update_obj = Update.de_json(update_json, tg_application.bot)
-            global_loop.run_until_complete(tg_application.process_update(update_obj))
+            # معالجة فورية وغير متزامنة تماماً لمنع تعليق خوادم الويب
+            global_loop.create_task(tg_application.process_update(update_obj))
         except Exception as e:
             print(f"❌ Webhook Processing Error: {e}")
     return "OK", 200
@@ -101,79 +103,39 @@ def check_drug_interactions(text):
         interaction_alerts += "⚠️ 🚨 [تداخل دوائي أسود خطير]: هبوط حاد وصدمة وعائية مفاجئة قاتلة.\n\n"
     return interaction_alerts
 
-async def get_patient_history_from_supabase(full_name):
-    try:
-        if not full_name or full_name in ["حالة سريرية", "حالة طارئة"]: 
-            return None
-        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
-        url = f"{SUPABASE_URL}/rest/v1/patients?full_name=eq.{full_name}&order=created_at.desc&limit=1"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
-            return response.json()[0] if response.status_code == 200 and response.json() else None
-    except: 
-        return None
-
-# --- 🚀 محرك الاتصال المطور والمزود بآلية تخطي ضغط خوادم جوجل (503) ---
-async def consult_advanced_medical_system(content_payload, is_media=False, history_context=""):
-    history_prompt = f"\n[سجل التاريخ المرضي السابق]:\n{history_context}" if history_context else "\n(أول زيارة للمريض)."
+# --- 🚀 محرك الاتصال الرسمي المستقر والخارق للأداء مع Google ---
+async def consult_advanced_medical_system_official(img_bytes=None, text_context=""):
     base_prompt = (
         "أنت الآن 'منظومة البروفيسور سينا للكونسلتو الطبي الأعلى والتشخيص البصري والسريري المتقدم'.\n"
         f"التركيز الإكلينيكي والمراجع المفعلة حالياً: {SYSTEM_CONFIG['clinical_focus']}\n"
         "[قاعدة صارمة للمصطلحات والرد]:\n"
         "يجب صياغة كافة المصطلحات الطبية والأمراض باللغتين معاً داخل التقرير: العربية والإنجليزية بين قوسين.\n"
-        f"{history_prompt}\n"
         "أنت تستقبل الآن المعطيات مباشرة، صغ مخرج التقرير الاستشاري النهائي للمريض بالتفصيل وبدون علامات الماركداون العشوائية."
     )
     
-    api_key = GOOGLE_API_KEY.strip() if GOOGLE_API_KEY else ""
-    if not api_key:
-        return "❌ خطأ: لم يتم ضبط مفتاح GOOGLE_API_KEY في متغيرات البيئة."
+    if not GOOGLE_API_KEY:
+        return "❌ خطأ: لم يتم ضبط مفتاح GOOGLE_API_KEY في متغيرات البيئة السحابية."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    headers = {"Content-Type": "application/json"}
-
-    if is_media:
-        payload = {
-            "contents": [{
-                "parts": [
-                    {"text": base_prompt + "\nقم بتحليل صورة التحليل الطبي أو الأشعة المرفقة بدقة بالغة وبأعلى معايير سريرية."},
-                    {
-                        "inlineData": {
-                            "mimeType": "image/jpeg",
-                            "data": content_payload
-                        }
-                    }
-                ]
-            }],
-            "generationConfig": {"temperature": SYSTEM_CONFIG["ai_temperature"]}
-        }
-    else:
-        payload = {
-            "contents": [{
-                "parts": [{"text": base_prompt + f"\nسياق المعطيات الحالي للحالة:\n{content_payload}"}]
-            }],
-            "generationConfig": {"temperature": SYSTEM_CONFIG["ai_temperature"]}
-        }
-    
-    # 🔧 [تطوير حرج لقوة الاتصال]: محاولة الاتصال بحد أقصى 3 مرات عند حدوث الخطأ 503 اللحظي
-    max_retries = 3
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        for attempt in range(max_retries):
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                if response.status_code == 200:
-                    return response.json()['candidates'][0]['content']['parts'][0]['text']
-                elif response.status_code == 503 and attempt < max_retries - 1:
-                    print(f"⚠️ سيرفر جوجل مشغول (503)، جاري إعادة المحاولة خلال ثانيتين... محاولة {attempt + 1}")
-                    await asyncio.sleep(2)
-                    continue
-                else:
-                    return f"❌ خطأ في ربط جوجل (كود الحالة: {response.status_code})"
-            except Exception as api_err:
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(2)
-                    continue
-                return f"❌ فشل الاتصال المباشر بخادم جوجل: {str(api_err)}"
+    try:
+        # استخدام موديل 1.5-flash الرسمي المستقر والمدعوم للصور والتقارير الطبية السريعة
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        if img_bytes:
+            # معالجة الصورة بشكل مباشر وآمن للذاكرة عيار 100%
+            cookie_image = {'mime_type': 'image/jpeg', 'data': img_bytes}
+            response = await model.generate_content_async(
+                contents=[base_prompt, cookie_image],
+                generation_config={"temperature": SYSTEM_CONFIG["ai_temperature"]}
+            )
+        else:
+            response = await model.generate_content_async(
+                contents=[base_prompt, text_context],
+                generation_config={"temperature": SYSTEM_CONFIG["ai_temperature"]}
+            )
+            
+        return response.text
+    except Exception as api_err:
+        return f"❌ فشل محرك الاتصال الرسمي: {str(api_err)}"
 
 async def save_to_supabase_advanced(full_name, diagnosis, specialty, urgency):
     try:
@@ -210,7 +172,7 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_text == "/start":
             reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
             await update.message.reply_text(
-                "🏥 أهلاً بك في منظومة البروفيسور سينا الطبية (النسخة المستقرة عبر Google Studio).\n\nالمنظومة متصلة وبأعلى كفاءة وجاهزة لقراءة الصور والتقارير فوراً.",
+                "🏥 أهلاً بك في منظومة البروفيسور سينا الطبية (النسخة المستقرة الرسمية).\n\nالمنظومة متصلة وبأعلى كفاءة وجاهزة لقراءة الصور والتقارير فوراً.",
                 reply_markup=reply_markup
             )
             return
@@ -225,21 +187,13 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await handle_user_buttons(update, context, user_text)
             return
 
-        is_media = False
-        content_payload = user_text
+        img_bytes_payload = None
 
         if update.message.photo:
-            is_media = True
             processing_message = await update.message.reply_text("📸 جاري استقبال التقرير الطبي ومعالجته رقمياً...")
-            
             photo_file = await context.bot.get_file(update.message.photo[-1].file_id)
-            img_buffer = await photo_file.download_as_bytearray()
-            content_payload = base64.b64encode(img_buffer).decode('utf-8')
+            img_bytes_payload = await photo_file.download_as_bytearray()
             
-            del photo_file
-            del img_buffer
-            gc.collect()
-
             try:
                 await processing_message.delete()
             except:
@@ -247,20 +201,21 @@ async def handle_main_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         processing_message = await update.message.reply_text("⏳ [المنظومة في وضع المعالجة السريرية المباشرة]\n🔍 جاري تحليل المعطيات عبر محرك Google الموثوق...")
         
-        patient_name = "حالة سريرية طارئة"
-        history_text = await get_patient_history_from_supabase(patient_name)
         epi_alerts = predict_epidemiology_and_risks(str(user_text))
         drug_alerts = check_drug_interactions(str(user_text))
         
-        rep = await consult_advanced_medical_system(content_payload, is_media, history_text)
+        # استدعاء المحرك الرسمي المستقر والآمن
+        rep = await consult_advanced_medical_system_official(img_bytes=img_bytes_payload, text_context=user_text)
         reply_markup = get_developer_reply_keyboard() if user_id == DEVELOPER_CHAT_ID else get_user_reply_keyboard()
         
-        if is_media:
-            del content_payload
+        # تنظيف الذاكرة بشكل فوري بعد سحب البيانات وعودتها من جوجل
+        if img_bytes_payload:
+            del img_bytes_payload
             gc.collect()
 
         rep = rep.replace("`", "").replace("---START_REP---", "").replace("---END_REP---", "")
 
+        patient_name = "حالة سريرية طارئة"
         await save_to_supabase_advanced(patient_name, rep[:500] + "...", "عام", "مستقرة")
         rights_footer = f"\n\n👑 [ميثاق الملكية وحقوق البرمجة]: تم التطوير بواسطة البروفيسور إسماعيل {DEVELOPER_USERNAME}"
         rep_with_rights = rep + rights_footer
